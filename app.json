@@ -13,6 +13,11 @@
     },
     "android": {
       "package": "com.kowautoparts.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "kow-auto-parts"
+      }
     }
   }
 }
