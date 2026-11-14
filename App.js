@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -150,118 +152,123 @@ export default function App() {
         <Text style={styles.headerSubtitle}>Android Offline-First</Text>
       </View>
 
-      {ecranCurent === 'ACASA' && (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuBtn}
-              onPress={() => {
-                setSubEcranAdaugare(null);
-                setEcranCurent(item.id);
-              }}
-            >
-              <Text style={styles.menuBtnText}>{item.titlu}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {ecranCurent === 'ADAUGA_PIESA' && !subEcranAdaugare && (
-        <View style={styles.scroll}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
-            <Text style={styles.backTxt}>← Înapoi</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Adăugare Piesă</Text>
-          <TouchableOpacity style={styles.bigBtn} onPress={() => setSubEcranAdaugare('INDIVIDUALA')}>
-            <Text style={styles.bigBtnTxt}>+ ADĂUGĂ PIESĂ INDIVIDUALĂ</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {ecranCurent === 'ADAUGA_PIESA' && subEcranAdaugare === 'INDIVIDUALA' && (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => setSubEcranAdaugare(null)}>
-            <Text style={styles.backTxt}>← Înapoi</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.title}>Formular Piesă</Text>
-
-          <Text style={styles.label}>Denumire *</Text>
-          <TextInput style={styles.input} placeholder="Ex: Far stânga" placeholderTextColor="#666" value={denumire} onChangeText={setDenumire} />
-
-          <Text style={styles.label}>Categorie</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-            {categorii.map((cat) => (
-              <TouchableOpacity key={cat} style={[styles.chip, categorie === cat && styles.chipAct]} onPress={() => setCategorie(cat)}>
-                <Text style={[styles.chipTxt, categorie === cat && styles.chipTxtAct]}>{cat}</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+      >
+        {ecranCurent === 'ACASA' && (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            {menuItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuBtn}
+                onPress={() => {
+                  setSubEcranAdaugare(null);
+                  setEcranCurent(item.id);
+                }}
+              >
+                <Text style={styles.menuBtnText}>{item.titlu}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
+        )}
 
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-            <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="Categorie nouă..." placeholderTextColor="#666" value={categorieNoua} onChangeText={setCategorieNoua} />
-            <TouchableOpacity style={styles.plusBtn} onPress={adaugaCategorieNoua}><Text style={{ color: '#000', fontSize: 20, fontWeight: 'bold' }}>+</Text></TouchableOpacity>
+        {ecranCurent === 'ADAUGA_PIESA' && !subEcranAdaugare && (
+          <View style={styles.scroll}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
+              <Text style={styles.backTxt}>← Înapoi</Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>Adăugare Piesă</Text>
+            <TouchableOpacity style={styles.bigBtn} onPress={() => setSubEcranAdaugare('INDIVIDUALA')}>
+              <Text style={styles.bigBtnTxt}>+ ADĂUGĂ PIESĂ INDIVIDUALĂ</Text>
+            </TouchableOpacity>
           </View>
+        )}
 
-          <Text style={styles.label}>Cod OEM</Text>
-          <TextInput style={styles.input} placeholder="Ex: 1K0941006P" placeholderTextColor="#666" value={codOem} onChangeText={setCodOem} />
+        {ecranCurent === 'ADAUGA_PIESA' && subEcranAdaugare === 'INDIVIDUALA' && (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setSubEcranAdaugare(null)}>
+              <Text style={styles.backTxt}>← Înapoi</Text>
+            </TouchableOpacity>
 
-          <Text style={styles.label}>Poziție</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-            {POZITII_DISPONIBILE.map((poz) => {
-              const sel = pozitiiSelectate.includes(poz);
-              return (
-                <TouchableOpacity key={poz} style={[styles.chip, sel && styles.chipAct]} onPress={() => togglePozitie(poz)}>
-                  <Text style={[styles.chipTxt, sel && styles.chipTxtAct]}>{poz}</Text>
+            <Text style={styles.title}>Formular Piesă</Text>
+
+            <Text style={styles.label}>Denumire *</Text>
+            <TextInput style={styles.input} placeholder="Ex: Far stânga" placeholderTextColor="#666" value={denumire} onChangeText={setDenumire} />
+
+            <Text style={styles.label}>Categorie</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+              {categorii.map((cat) => (
+                <TouchableOpacity key={cat} style={[styles.chip, categorie === cat && styles.chipAct]} onPress={() => setCategorie(cat)}>
+                  <Text style={[styles.chipTxt, categorie === cat && styles.chipTxtAct]}>{cat}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              ))}
+            </ScrollView>
 
-          <Text style={styles.label}>Preț (RON)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" value={pret} onChangeText={setPret} />
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+              <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="Categorie nouă..." placeholderTextColor="#666" value={categorieNoua} onChangeText={setCategorieNoua} />
+              <TouchableOpacity style={styles.plusBtn} onPress={adaugaCategorieNoua}><Text style={{ color: '#000', fontSize: 20, fontWeight: 'bold' }}>+</Text></TouchableOpacity>
+            </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={salveazaPiesa}>
-            <Text style={styles.saveTxt}>SALVEAZĂ ÎN STOC LOCAL</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+            <Text style={styles.label}>Cod OEM</Text>
+            <TextInput style={styles.input} placeholder="Ex: 1K0941006P" placeholderTextColor="#666" value={codOem} onChangeText={setCodOem} />
 
-      {(ecranCurent === 'STOC' || ecranCurent === 'CAUTA') && (
-        <View style={{ flex: 1, padding: 15 }}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
-            <Text style={styles.backTxt}>← Înapoi</Text>
-          </TouchableOpacity>
-          <TextInput style={styles.input} placeholder="🔍 Caută piese..." placeholderTextColor="#888" value={textCautare} onChangeText={setTextCautare} />
-          <ScrollView>
-            {pieseFiltrate.length === 0 ? (
-              <Text style={{ color: '#777', textAlign: 'center', marginTop: 30 }}>Nicio piesă salvată local.</Text>
-            ) : (
-              pieseFiltrate.map((p) => (
-                <View key={p.id} style={styles.card}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: '#ff9800', fontWeight: 'bold' }}>{p.qr}</Text>
-                    <Text style={{ color: '#4caf50', fontWeight: 'bold' }}>{p.pret} {p.moneda}</Text>
-                  </View>
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginVertical: 4 }}>{p.denumire}</Text>
-                  <Text style={{ color: '#aaa', fontSize: 13 }}>Cat: {p.categorie} {p.pozitie ? `• ${p.pozitie}` : ''}</Text>
-                </View>
-              ))
-            )}
+            <Text style={styles.label}>Poziție</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {POZITII_DISPONIBILE.map((poz) => {
+                const sel = pozitiiSelectate.includes(poz);
+                return (
+                  <TouchableOpacity key={poz} style={[styles.chip, sel && styles.chipAct]} onPress={() => togglePozitie(poz)}>
+                    <Text style={[styles.chipTxt, sel && styles.chipTxtAct]}>{poz}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>Preț (RON)</Text>
+            <TextInput style={styles.input} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" value={pret} onChangeText={setPret} />
+
+            <TouchableOpacity style={styles.saveBtn} onPress={salveazaPiesa}>
+              <Text style={styles.saveTxt}>SALVEAZĂ ÎN STOC LOCAL</Text>
+            </TouchableOpacity>
           </ScrollView>
-        </View>
-      )}
+        )}
 
-      {!['ACASA', 'ADAUGA_PIESA', 'STOC', 'CAUTA'].includes(ecranCurent) && (
-        <View style={styles.scroll}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
-            <Text style={styles.backTxt}>← Înapoi</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Secțiunea: {ecranCurent}</Text>
-          <Text style={{ color: '#aaa', textAlign: 'center', marginTop: 20 }}>În curând...</Text>
-        </View>
-      )}
+        {(ecranCurent === 'STOC' || ecranCurent === 'CAUTA') && (
+          <View style={{ flex: 1, padding: 15 }}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
+              <Text style={styles.backTxt}>← Înapoi</Text>
+            </TouchableOpacity>
+            <TextInput style={styles.input} placeholder="🔍 Caută piese..." placeholderTextColor="#888" value={textCautare} onChangeText={setTextCautare} />
+            <ScrollView>
+              {pieseFiltrate.length === 0 ? (
+                <Text style={{ color: '#777', textAlign: 'center', marginTop: 30 }}>Nicio piesă salvată local.</Text>
+              ) : (
+                pieseFiltrate.map((p) => (
+                  <View key={p.id} style={styles.card}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: '#ff9800', fontWeight: 'bold' }}>{p.qr}</Text>
+                      <Text style={{ color: '#4caf50', fontWeight: 'bold' }}>{p.pret} {p.moneda}</Text>
+                    </View>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginVertical: 4 }}>{p.denumire}</Text>
+                    <Text style={{ color: '#aaa', fontSize: 13 }}>Cat: {p.categorie} {p.pozitie ? `• ${p.pozitie}` : ''}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        {!['ACASA', 'ADAUGA_PIESA', 'STOC', 'CAUTA'].includes(ecranCurent) && (
+          <View style={styles.scroll}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => setEcranCurent('ACASA')}>
+              <Text style={styles.backTxt}>← Înapoi</Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>Secțiunea: {ecranCurent}</Text>
+            <Text style={{ color: '#aaa', textAlign: 'center', marginTop: 20 }}>În curând...</Text>
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -290,4 +297,4 @@ const styles = StyleSheet.create({
   saveTxt: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
   card: { backgroundColor: '#1e1e1e', padding: 14, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: '#333' },
 });
-      
+    
