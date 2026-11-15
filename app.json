@@ -1,22 +1,51 @@
-{
-  "expo": {
-    "name": "KOW Auto Parts",
-    "slug": "kap2",
-    "owner": "kowallygg",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#121212"
-    },
-    "android": {
-      "package": "com.kowautoparts.app"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "8372f915-9ee3-4037-b16c-51aabc5b9f76"
-      }
+import React, { useState } from 'react';
+import { SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
+
+// Importăm ecranele din folderul src/screens/
+import HomeScreen from './src/screens/HomeScreen';
+import AddPartScreen from './src/screens/AddPartScreen';
+import AddCarScreen from './src/screens/AddCarScreen';
+import StockScreen from './src/screens/StockScreen';
+import SalesScreen from './src/screens/SalesScreen';
+
+export default function App() {
+  // Starea care reține ecranul activ: 'home', 'addPart', 'addCar', 'stock', 'sales'
+  const [currentScreen, setCurrentScreen] = useState('home');
+
+  // Funcție de randare dinamică a ecranului activ
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'home':
+        return <HomeScreen navigateTo={setCurrentScreen} />;
+      case 'addPart':
+        return <AddPartScreen goBack={() => setCurrentScreen('home')} />;
+      case 'addCar':
+        return <AddCarScreen goBack={() => setCurrentScreen('home')} />;
+      case 'stock':
+        return <StockScreen goBack={() => setCurrentScreen('home')} />;
+      case 'sales':
+        return <SalesScreen goBack={() => setCurrentScreen('home')} />;
+      default:
+        return <HomeScreen navigateTo={setCurrentScreen} />;
     }
-  }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F1115" />
+      <View style={styles.content}>
+        {renderScreen()}
+      </View>
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F1115',
+  },
+  content: {
+    flex: 1,
+  },
+});
