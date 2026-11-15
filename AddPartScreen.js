@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 
-// DATE SIMULATE PENTRU MEMORIE & AUTO-COMPLETARE INTELIGENTĂ
 const INITIAL_LOTS = [
   { id: 'L1', name: 'Lot #1 - Anglia Septembrie' },
   { id: 'L2', name: 'Lot #2 - Germania Octombrie' },
@@ -51,25 +50,20 @@ const PAST_PARTS_MEMORY = [
 ];
 
 export default function AddPartScreen({ goBack }) {
-  // PASUL 1: ECRAN INTERMEDIAR ('menu' | 'form' | 'select_car' | 'select_lot')
   const [step, setStep] = useState('menu');
 
-  // MULTIMEDIA & QR
   const [photosCount, setPhotosCount] = useState(0);
   const [qrCode, setQrCode] = useState('');
 
-  // 1. NUME PIESĂ + MEMORIE
   const [partName, setPartName] = useState('');
   const [partNameHistory, setPartNameHistory] = useState(['Alternator 2.0 TDI', 'Far H7', 'Bară față', 'Cutie viteze 6 trepte']);
 
-  // 2 & 3. SELECTARE LOT / MAȘINĂ + CÂMPURI REZERVĂ
   const [selectedLot, setSelectedLot] = useState(null);
   const [selectedCar, setSelectedCar] = useState(null);
   const [manualBrand, setManualBrand] = useState('');
   const [manualModel, setManualModel] = useState('');
   const [manualYear, setManualYear] = useState('');
 
-  // 4. CATEGORII ȘI SUBCATEGORII DINAMICE
   const [categoriesData, setCategoriesData] = useState(INITIAL_CATEGORIES);
   const [activeCategoryModal, setActiveCategoryModal] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -77,7 +71,6 @@ export default function AddPartScreen({ goBack }) {
   const [newSubcatText, setNewSubcatText] = useState('');
   const [colorCode, setColorCode] = useState('');
 
-  // 5 & 6. COD OEM, PRODUCĂTOR ȘI COMPATIBILITĂȚI (5.1 & 5.2)
   const [oemCode, setOemCode] = useState('');
   const [oemHistory, setOemHistory] = useState(['03G903023', '8E0941003', '1K0807221']);
   const [compatibleOems, setCompatibleOems] = useState([]);
@@ -91,30 +84,23 @@ export default function AddPartScreen({ goBack }) {
   const [producerCode, setProducerCode] = useState('');
   const [producerHistory, setProducerHistory] = useState(['Bosch', 'Valeo', 'Luk', 'Delphi']);
 
-  // 7. POZIȚII MULTIPLE
   const [selectedPositions, setSelectedPositions] = useState([]);
   const [showPositionsList, setShowPositionsList] = useState(false);
 
-  // 8. STARE PIESĂ
   const [condition, setCondition] = useState('Stare bună');
   const [defectDetails, setDefectDetails] = useState('');
 
-  // 9. PREȚ & MONEDĂ
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState('LEI');
 
-  // 10. LOCAȚIE DEPOZIT / CURTE / MAȘINĂ
-  const [locationType, setLocationType] = useState('Depozit'); // 'Depozit' | 'Curte' | 'Mașină'
+  const [locationType, setLocationType] = useState('Depozit');
   const [locRaft, setLocRaft] = useState('');
   const [locColoana, setLocColoana] = useState('');
   const [locNivel, setLocNivel] = useState('');
   const [yardCustomLoc, setYardCustomLoc] = useState('');
   const [yardHistory, setYardHistory] = useState(['Platformă spate', 'După garaj', 'Sub copertină', 'Container 2']);
 
-  // ALTE DETALII
   const [otherDetails, setOtherDetails] = useState('');
-
-  // --- FUNCȚII INTELIGENTE ---
 
   const handleSelectCar = (car) => {
     setSelectedCar(car);
@@ -136,7 +122,6 @@ export default function AddPartScreen({ goBack }) {
     const cleanText = text.trim().toUpperCase();
     if (!cleanText) return;
 
-    // Căutare în istoricul pieselor trecute
     const match = PAST_PARTS_MEMORY.find(
       (p) => p.oem.toUpperCase() === cleanText || p.compatibleOems.some((c) => c.toUpperCase() === cleanText)
     );
@@ -147,7 +132,6 @@ export default function AddPartScreen({ goBack }) {
       if (!price) setPrice(match.price);
       setCurrency(match.currency);
 
-      // Combină codurile compatibile automat
       const allRelated = Array.from(new Set([match.oem, ...match.compatibleOems])).filter(
         (c) => c.toUpperCase() !== cleanText
       );
@@ -224,9 +208,6 @@ export default function AddPartScreen({ goBack }) {
     goBack();
   };
 
-  // ==========================================
-  // ECRAN INTERMEDIAR (CELE 3 BUTOANE MARI)
-  // ==========================================
   if (step === 'menu') {
     return (
       <View style={styles.container}>
@@ -269,7 +250,6 @@ export default function AddPartScreen({ goBack }) {
     );
   }
 
-  // ECRAN SELECTARE MAȘINĂ
   if (step === 'select_car') {
     return (
       <View style={styles.container}>
@@ -297,7 +277,6 @@ export default function AddPartScreen({ goBack }) {
     );
   }
 
-  // ECRAN SELECTARE LOT
   if (step === 'select_lot') {
     return (
       <View style={styles.container}>
@@ -319,14 +298,10 @@ export default function AddPartScreen({ goBack }) {
     );
   }
 
-  // ==========================================
-  // FORMULARUL COMPLET DE DETALII PIESĂ
-  // ==========================================
   const hasCarrosserie = selectedCategories.includes('Caroserie și exterior');
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setStep('menu')} style={styles.backButton}>
           <Text style={styles.backButtonText}>⬅ Meniu</Text>
@@ -335,7 +310,6 @@ export default function AddPartScreen({ goBack }) {
         <View style={{ width: 60 }} />
       </View>
 
-      {/* ZONA SUPERIOARĂ: MULTIMEDIA & COD QR */}
       <View style={styles.card}>
         <Text style={styles.sectionHeader}>📸 Multimedia & Identificare QR</Text>
         <View style={styles.grid2}>
@@ -365,7 +339,6 @@ export default function AddPartScreen({ goBack }) {
           </TouchableOpacity>
         </View>
 
-        {/* ECUSON VERDE DE CONFIRMARE VIZUALĂ */}
         {qrCode !== '' && (
           <View style={styles.qrSuccessBadge}>
             <Text style={styles.qrSuccessText}>✅ Cod QR atașat: {qrCode}</Text>
@@ -376,7 +349,6 @@ export default function AddPartScreen({ goBack }) {
         )}
       </View>
 
-      {/* 1. NUME PIESĂ (CU MEMORIE) */}
       <View style={styles.card}>
         <Text style={styles.label}>1. Nume piesă *</Text>
         <TextInput
@@ -394,7 +366,6 @@ export default function AddPartScreen({ goBack }) {
           ))}
         </ScrollView>
 
-        {/* 2 & 3. SELECTEAZĂ LOT / SELECTEAZĂ MAȘINĂ */}
         <Text style={[styles.label, { marginTop: 12 }]}>2. Selectează Lot / 3. Selectează Mașină</Text>
         <View style={styles.row}>
           <TouchableOpacity
@@ -430,7 +401,6 @@ export default function AddPartScreen({ goBack }) {
           </TouchableOpacity>
         )}
 
-        {/* DACĂ NU SE SELECTEAZĂ MAȘINĂ SAU LOT -> APAR A, B, C */}
         {!selectedCar && !selectedLot && (
           <View style={styles.fallbackBox}>
             <Text style={styles.fallbackTitle}>Date vehicul (dacă nu e din lot/mașină):</Text>
@@ -460,7 +430,6 @@ export default function AddPartScreen({ goBack }) {
         )}
       </View>
 
-      {/* 4. CELE 8 CATEGORII PRINCIPALE & SUBCATEGORII */}
       <View style={styles.card}>
         <Text style={styles.label}>4. Categorii Principale (Apasă pentru subcategorii)</Text>
         <View style={styles.chipsWrap}>
@@ -495,7 +464,6 @@ export default function AddPartScreen({ goBack }) {
           </View>
         )}
 
-        {/* ACTIVARE DINAMICĂ: CAROSERIE -> COD CULOARE */}
         {hasCarrosserie && (
           <View style={styles.colorBox}>
             <Text style={styles.colorLabel}>🎨 12. Cod Culoare / Denumire Culoare *</Text>
@@ -510,7 +478,6 @@ export default function AddPartScreen({ goBack }) {
         )}
       </View>
 
-      {/* 5 & 6. COD OEM, PRODUCĂTOR ȘI COMPATIBILITĂȚI */}
       <View style={styles.card}>
         <Text style={styles.label}>5. Cod OEM (Auto-recunoaștere & Memorie)</Text>
         <TextInput
@@ -519,4 +486,39 @@ export default function AddPartScreen({ goBack }) {
           placeholderTextColor="#6B7280"
           value={oemCode}
           onChangeText={handleOemChange}
- 
+        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memoryScroll}>
+          {oemHistory.map((item, idx) => (
+            <TouchableOpacity key={idx} style={styles.memoryPill} onPress={() => handleOemChange(item)}>
+              <Text style={styles.memoryPillText}>🔖 {item}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <Text style={[styles.label, { marginTop: 12 }]}>5.1 Compatibil cu (Alte coduri OEM)</Text>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0 }]}
+            placeholder="Adaugă cod OEM echivalent..."
+            placeholderTextColor="#6B7280"
+            value={newCompatOem}
+            onChangeText={setNewCompatOem}
+          />
+          <TouchableOpacity
+            style={styles.addPlusBtn}
+            onPress={() => {
+              if (newCompatOem.trim()) {
+                setCompatibleOems([...compatibleOems, newCompatOem.trim()]);
+                setNewCompatOem('');
+              }
+            }}
+          >
+            <Text style={styles.addPlusBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.chipsWrap, { marginTop: 8 }]}>
+          {compatibleOems.map((c, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.subTagActive}
+              onPress={() =>
