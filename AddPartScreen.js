@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,13 +13,14 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 
 const INITIAL_LOTS = [
-  { id: 'L1', name: 'Lot #1 - Anglia' },
-  { id: 'L2', name: 'Lot #2 - Germania' },
+  { id: 'L1', name: 'Lot #2 - Germania (Oct 2026)', date: '2026-10-15' },
+  { id: 'L2', name: 'Lot #1 - Anglia (Sep 2026)', date: '2026-09-10' },
 ];
 
 const INITIAL_CARS = [
-  { id: 'C1', name: 'VW Golf 5 - 2.0 TDI (2006)', lotId: 'L1' },
-  { id: 'C2', name: 'Audi A4 B7 - 2.0 TDI (2007)', lotId: 'L2' },
+  { id: 'C1', name: 'Audi A4 B7 - 2.0 TDI (2007)', lotId: 'L1', date: '2026-10-20' },
+  { id: 'C2', name: 'VW Golf 5 - 2.0 TDI (2006)', lotId: 'L2', date: '2026-09-12' },
+  { id: 'C3', name: 'BMW E90 - 320d (2006)', lotId: null, date: '2026-08-01' },
 ];
 
 const INITIAL_CATEGORIES = {
@@ -33,17 +35,18 @@ const INITIAL_CATEGORIES = {
 };
 
 const POSITIONS_LIST = [
-  'Stânga', 'Dreapta', 'Față', 'Spate', 'Mijloc', 'Sus', 'Jos',
-  'Stânga față', 'Stânga spate', 'Dreapta față', 'Dreapta spate',
-];
+  'Jos', 'Dreapta', 'Dreapta față', 'Dreapta spate', 'Față', 
+  'Mijloc', 'Spate', 'Stânga', 'Stânga față', 'Stânga spate', 'Sus',
+].sort();
 
 export default function AddPartScreen({ goBack, onSavePartToStock }) {
   const [step, setStep] = useState('menu');
   const [photos, setPhotos] = useState([]);
+  const [zoomImage, setZoomImage] = useState(null);
   const [qrCode, setQrCode] = useState('');
 
   const [partName, setPartName] = useState('');
-  const [partNameHistory] = useState(['Alternator 2.0 TDI', 'Far stânga H7', 'Bară față Golf 5', 'Clapetă accelerație']);
+  const [partNameHistory] = useState(['Alternator 2.0 TDI', 'Bară față Golf 5', 'Clapetă accelerație', 'Far stânga H7'].sort());
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
 
   const [selectedLot, setSelectedLot] = useState(null);
@@ -60,12 +63,12 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
   const [colorCode, setColorCode] = useState('');
 
   const [oemCode, setOemCode] = useState('');
-  const [oemHistory] = useState(['03G903023', '8E0941003', '1K0807221']);
+  const [oemHistory, setOemHistory] = useState(['03G903023', '1K0807221', '8E0941003'].sort());
   const [showOemSuggestions, setShowOemSuggestions] = useState(false);
   const [compatibleOems, setCompatibleOems] = useState([]);
   const [newCompatOem, setNewCompatOem] = useState('');
-      const [brandsList, setBrandsList] = useState(['Volkswagen', 'Audi', 'Skoda', 'BMW', 'Mercedes'].sort());
-  const [modelsList, setModelsList] = useState(['Golf 5', 'Passat B6', 'Octavia 2', 'A4 B7', 'E90'].sort());
+    const [brandsList, setBrandsList] = useState(['Audi', 'BMW', 'Ford', 'Mercedes', 'Opel', 'Skoda', 'Volkswagen'].sort());
+  const [modelsList, setModelsList] = useState(['A4 B7', 'Astra H', 'E90', 'Focus', 'Golf 5', 'Octavia 2', 'Passat B6'].sort());
   const [yearsList] = useState(['2004', '2005', '2006', '2007', '2008', '2009', '2010']);
 
   const [compatBrand, setCompatBrand] = useState('');
@@ -79,6 +82,9 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
   const [customModelInput, setCustomModelInput] = useState('');
 
   const [producerCode, setProducerCode] = useState('');
+  const [producerHistory, setProducerHistory] = useState(['Bosch', 'Continental', 'Delphi', 'LUK', 'Sachs', 'Valeo'].sort());
+  const [showProducerSuggestions, setShowProducerSuggestions] = useState(false);
+
   const [selectedPositions, setSelectedPositions] = useState([]);
   const [showPositionsList, setShowPositionsList] = useState(false);
 
@@ -118,16 +124,27 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
     }
   };
 
-  const handleScanQrCamera = () => {
-    const generated = `QR-KOW-${Math.floor(1000 + Math.random() * 9000)}`;
-    setQrCode(generated);
+  const handleScanQrCamera = async () => {
+    let perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Eroare', 'Ai nevoie de permisiune pentru cameră!');
+      return;
+    }
+    let result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled && result.assets?.[0]) {
+      setPhotos([...photos, result.assets[0].uri]);
+      setQrCode(`QR-SCANAT-${Math.floor(1000 + Math.random() * 9000)}`);
+      Alert.alert('Succes', 'Cod QR scanat!');
+    }
   };
 
   const addSubcategory = () => {
     if (!newSubcatText.trim() || !activeCategoryModal) return;
     const trimmed = newSubcatText.trim();
-    const updatedList = Array.from(new Set([...(categoriesData[activeCategoryModal] || []), trimmed])).sort();
-    setCategoriesData({ ...categoriesData, [activeCategoryModal]: updatedList });
+    const updatedCategoryList = Array.from(new Set([...(categoriesData[activeCategoryModal] || []), trimmed])).sort();
+    
+    setCategoriesData({ ...categoriesData, [activeCategoryModal]: updatedCategoryList });
+
     if (!selectedSubcategories.includes(trimmed)) setSelectedSubcategories([...selectedSubcategories, trimmed]);
     if (!selectedCategories.includes(activeCategoryModal)) setSelectedCategories([...selectedCategories, activeCategoryModal]);
     setNewSubcatText('');
@@ -161,9 +178,8 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
     const newPartData = {
       id: `P-${Math.floor(1000 + Math.random() * 9000)}`,
       partName,
-      lot: selectedLot ? selectedLot.name : null,
-      car: selectedCar ? selectedCar.name : null,
-      manualVehicle: !selectedCar && !selectedLot ? `${manualBrand} ${manualModel} (${manualYear})` : null,
+      lot: selectedLot ? selectedLot.name : 'Fără lot',
+      car: selectedCar ? selectedCar.name : 'Fără mașină',
       categories: selectedCategories,
       subcategories: selectedSubcategories,
       colorCode: colorCode || null,
@@ -172,14 +188,14 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
       defectDetails: condition === 'Stare ok cu defect' ? defectDetails : null,
       price: price ? `${price} ${currency}` : '0 RON',
       location: locationType === 'Depozit' ? `Depozit: Raft ${locRaft}, Col ${locColoana}, Niv ${locNivel}` : locationType === 'Curte' ? `Curte: ${yardCustomLoc}` : 'Mașină',
-      otherDetails, qrCode: qrCode || 'Fără QR', photosCount: photos.length,
+      otherDetails, qrCode: qrCode || 'Fără QR', photos,
       dateAdded: new Date().toLocaleDateString('ro-RO'),
     };
     if (onSavePartToStock) onSavePartToStock(newPartData);
-    Alert.alert('✅ Salvat!', `Piesa "${partName}" a fost adăugată.`);
+    Alert.alert('✅ Salvat!', `Piesa "${partName}" a fost adăugată în stoc.`);
     goBack();
   };
-        if (step === 'menu') {
+       if (step === 'menu') {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -197,25 +213,43 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
   }
 
   if (step === 'select_car') {
+    const sortedCars = [...INITIAL_CARS].sort((a, b) => new Date(b.date) - new Date(a.date));
     return (
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setStep('form')} style={styles.backButton}><Text style={styles.backButtonText}>⬅ Înapoi</Text></TouchableOpacity>
           <Text style={styles.headerTitle}>Selectează Mașina</Text><View style={{ width: 60 }} />
         </View>
-        <ScrollView>{INITIAL_CARS.map(car => (<TouchableOpacity key={car.id} style={styles.selectListItem} onPress={() => { setSelectedCar(car); const l = INITIAL_LOTS.find(x => x.id === car.lotId); if (l) setSelectedLot(l); setStep('form'); }}><Text style={styles.selectListTitle}>🚗 {car.name}</Text></TouchableOpacity>))}</ScrollView>
+        <ScrollView>
+          {sortedCars.map(car => {
+            const lot = INITIAL_LOTS.find(l => l.id === car.lotId);
+            return (
+              <TouchableOpacity key={car.id} style={styles.selectListItem} onPress={() => { setSelectedCar(car); if (lot) setSelectedLot(lot); setStep('form'); }}>
+                <Text style={styles.selectListTitle}>🚗 {car.name}</Text>
+                <Text style={styles.selectListGreen}>Provine din: {lot ? lot.name : 'Fără lot asociat'}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
     );
   }
 
   if (step === 'select_lot') {
+    const sortedLots = [...INITIAL_LOTS].sort((a, b) => new Date(b.date) - new Date(a.date));
     return (
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setStep('form')} style={styles.backButton}><Text style={styles.backButtonText}>⬅ Înapoi</Text></TouchableOpacity>
           <Text style={styles.headerTitle}>Selectează Lotul</Text><View style={{ width: 60 }} />
         </View>
-        <ScrollView>{INITIAL_LOTS.map(lot => (<TouchableOpacity key={lot.id} style={styles.selectListItem} onPress={() => { setSelectedLot(lot); setSelectedCar(null); setStep('form'); }}><Text style={styles.selectListTitle}>📦 {lot.name}</Text></TouchableOpacity>))}</ScrollView>
+        <ScrollView>
+          {sortedLots.map(lot => (
+            <TouchableOpacity key={lot.id} style={styles.selectListItem} onPress={() => { setSelectedLot(lot); setSelectedCar(null); setStep('form'); }}>
+              <Text style={styles.selectListTitle}>📦 {lot.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
     );
   }
@@ -228,31 +262,56 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
           <Text style={styles.headerTitle}>Selectează Poză QR</Text><View style={{ width: 60 }} />
         </View>
         <ScrollView>
-          {photos.length === 0 ? <Text style={{ color: '#9CA3AF', textAlign: 'center', marginTop: 40 }}>Nicio poză adăugată!</Text> : photos.map((uri, idx) => (<TouchableOpacity key={idx} style={styles.selectListItem} onPress={() => { setQrCode(`QR-PHOTO-${idx + 1}`); setStep('form'); }}><Text style={styles.selectListTitle}>🖼️ Poză #{idx + 1}</Text></TouchableOpacity>))}
+          <Text style={styles.subLabel}>Alege poza cu codul QR:</Text>
+          {photos.length === 0 ? (
+            <Text style={{ color: '#9CA3AF', textAlign: 'center', marginTop: 40 }}>Nicio poză încă!</Text>
+          ) : (
+            <View style={styles.qrGrid}>
+              {photos.map((uri, idx) => (
+                <TouchableOpacity key={idx} style={styles.qrThumbCard} onPress={() => { setQrCode(`QR-EXTRAS-${idx + 1}`); setStep('form'); }}>
+                  <Image source={{ uri }} style={styles.qrThumbImage} />
+                  <Text style={styles.qrThumbText}>Poză #{idx + 1}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </View>
     );
   }
 
   const hasCarrosserie = selectedCategories.includes('Caroserie și exterior');
-  const filteredNameSuggestions = partName.trim() ? partNameHistory.filter(i => i.toLowerCase().includes(partName.toLowerCase())) : [];
-  const filteredOemSuggestions = oemCode.trim() ? oemHistory.filter(i => i.toLowerCase().includes(oemCode.toLowerCase())) : [];
-
-  return (
+  const filteredNameSuggestions = partName.trim() ? partNameHistory.filter(i => i.toLowerCase().includes(partName.toLowerCase())).sort() : [];
+  const filteredOemSuggestions = oemCode.trim() ? oemHistory.filter(i => i.toLowerCase().includes(oemCode.toLowerCase())).sort() : [];
+  const filteredProducerSuggestions = producerCode.trim() ? producerHistory.filter(i => i.toLowerCase().includes(producerCode.toLowerCase())).sort() : [];
+        return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setStep('menu')} style={styles.backButton}><Text style={styles.backButtonText}>⬅ Meniu</Text></TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalii Piesă</Text><View style={{ width: 60 }} />
+        <Text style={styles.headerTitle}>Detalii Piesă Nouă</Text><View style={{ width: 60 }} />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionHeader}>📸 Multimedia & QR</Text>
+        <Text style={styles.sectionHeader}>📸 Multimedia & Cod QR</Text>
         <View style={styles.grid2}>
           <TouchableOpacity style={styles.mediaBtn} onPress={handlePickGalleryImages}><Text style={styles.mediaBtnText}>🖼️ Galerie ({photos.length})</Text></TouchableOpacity>
           <TouchableOpacity style={styles.mediaBtn} onPress={handleCameraCapture}><Text style={styles.mediaBtnText}>📷 Cameră</Text></TouchableOpacity>
           <TouchableOpacity style={styles.mediaBtn} onPress={handleScanQrCamera}><Text style={styles.mediaBtnText}>📱 Scanează QR</Text></TouchableOpacity>
           <TouchableOpacity style={styles.mediaBtn} onPress={() => setStep('qr_picker')}><Text style={styles.mediaBtnText}>🔍 Poză QR</Text></TouchableOpacity>
         </View>
+
+        {photos.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {photos.map((uri, idx) => (
+                <TouchableOpacity key={idx} onPress={() => setZoomImage(uri)}>
+                  <Image source={{ uri }} style={styles.previewThumb} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+
         {qrCode !== '' && (<View style={styles.qrSuccessBadge}><Text style={styles.qrSuccessText}>✅ {qrCode}</Text><TouchableOpacity onPress={() => setQrCode('')}><Text style={styles.qrRemoveText}>✕</Text></TouchableOpacity></View>)}
       </View>
 
@@ -267,18 +326,11 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
           <TouchableOpacity style={[styles.selectorBox, { flex: 1, marginRight: 6 }]} onPress={() => setStep('select_lot')}><Text style={styles.selectorBoxLabel}>Lot:</Text><Text style={styles.selectorBoxValue} numberOfLines={1}>{selectedLot ? selectedLot.name : 'Alege...'}</Text></TouchableOpacity>
           <TouchableOpacity style={[styles.selectorBox, { flex: 1, marginLeft: 6 }]} onPress={() => setStep('select_car')}><Text style={styles.selectorBoxLabel}>Mașină:</Text><Text style={styles.selectorBoxValue} numberOfLines={1}>{selectedCar ? selectedCar.name : 'Alege...'}</Text></TouchableOpacity>
         </View>
-        {!selectedCar && !selectedLot && (
-          <View style={styles.fallbackBox}>
-            <Text style={styles.fallbackTitle}>Alte date vehicul:</Text>
-            <TextInput style={styles.input} placeholder="Marcă" placeholderTextColor="#6B7280" value={manualBrand} onChangeText={setManualBrand} />
-            <TextInput style={styles.input} placeholder="Model" placeholderTextColor="#6B7280" value={manualModel} onChangeText={setManualModel} />
-            <TextInput style={[styles.input, { marginBottom: 0 }]} placeholder="An" placeholderTextColor="#6B7280" keyboardType="numeric" value={manualYear} onChangeText={setManualYear} />
-          </View>
-        )}
       </View>
-                <View style={styles.card}>
+
+      <View style={styles.card}>
         <Text style={styles.label}>4. Categorii Principale</Text>
-        <View style={styles.chipsWrap}>{Object.keys(categoriesData).map(cat => (<TouchableOpacity key={cat} style={[styles.catChip, selectedCategories.includes(cat) && styles.catChipActive]} onPress={() => setActiveCategoryModal(cat)}><Text style={[styles.catChipText, selectedCategories.includes(cat) && styles.catChipTextActive]}>{cat}</Text></TouchableOpacity>))}</View>
+        <View style={styles.chipsWrap}>{Object.keys(categoriesData).sort().map(cat => (<TouchableOpacity key={cat} style={[styles.catChip, selectedCategories.includes(cat) && styles.catChipActive]} onPress={() => setActiveCategoryModal(cat)}><Text style={[styles.catChipText, selectedCategories.includes(cat) && styles.catChipTextActive]}>{cat}</Text></TouchableOpacity>))}</View>
         {selectedSubcategories.length > 0 && (<View style={styles.selectedTagsBox}><Text style={styles.subLabel}>Subcategorii:</Text><View style={styles.chipsWrap}>{selectedSubcategories.map(sub => (<TouchableOpacity key={sub} style={styles.subTagActive} onPress={() => setSelectedSubcategories(selectedSubcategories.filter(s => s !== sub))}><Text style={styles.subTagText}>✓ {sub} ✕</Text></TouchableOpacity>))}</View></View>)}
         {hasCarrosserie && (<View style={styles.colorBox}><Text style={styles.colorLabel}>🎨 Cod Culoare</Text><TextInput style={[styles.input, { marginBottom: 0 }]} placeholder="Ex: LA7W..." placeholderTextColor="#6B7280" value={colorCode} onChangeText={setColorCode} /></View>)}
       </View>
@@ -289,23 +341,43 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
         {showOemSuggestions && filteredOemSuggestions.length > 0 && (
           <View style={styles.suggestionsBox}>{filteredOemSuggestions.map((s, i) => (<TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => { setOemCode(s); setShowOemSuggestions(false); }}><Text style={styles.suggestionText}>💡 {s}</Text></TouchableOpacity>))}</View>
         )}
-        <Text style={[styles.label, { marginTop: 12 }]}>5.1 Coduri OEM Compatibile</Text>
-        <View style={styles.row}>
-          <TextInput style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0 }]} placeholder="OEM echivalent..." placeholderTextColor="#6B7280" value={newCompatOem} onChangeText={setNewCompatOem} />
-          <TouchableOpacity style={styles.addPlusBtn} onPress={() => { if (newCompatOem.trim()) { setCompatibleOems([...compatibleOems, newCompatOem.trim()]); setNewCompatOem(''); } }}><Text style={styles.addPlusBtnText}>+</Text></TouchableOpacity>
-        </View>
-        <View style={[styles.chipsWrap, { marginTop: 8 }]}>{compatibleOems.map((c, i) => (<TouchableOpacity key={i} style={styles.subTagActive} onPress={() => setCompatibleOems(compatibleOems.filter((_, idx) => idx !== i))}><Text style={styles.subTagText}>{c} ✕</Text></TouchableOpacity>))}</View>
 
-        <Text style={[styles.label, { marginTop: 14 }]}>5.2 Compatibilitate Vehicule</Text>
-        <View style={{ gap: 8 }}>
-          <View style={styles.row}><ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginRight: 8 }}>{brandsList.map(b => (<TouchableOpacity key={b} style={[styles.memoryPill, compatBrand === b && { backgroundColor: '#DC2626' }]} onPress={() => setCompatBrand(b)}><Text style={[styles.memoryPillText, compatBrand === b && { color: '#FFF' }]}>{b}</Text></TouchableOpacity>))}</ScrollView><TouchableOpacity style={styles.addPlusBtn} onPress={() => setShowAddBrandModal(true)}><Text style={styles.addPlusBtnText}>+</Text></TouchableOpacity></View>
-          <View style={styles.row}><ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginRight: 8 }}>{modelsList.map(m => (<TouchableOpacity key={m} style={[styles.memoryPill, compatModel === m && { backgroundColor: '#DC2626' }]} onPress={() => setCompatModel(m)}><Text style={[styles.memoryPillText, compatModel === m && { color: '#FFF' }]}>{m}</Text></TouchableOpacity>))}</ScrollView><TouchableOpacity style={styles.addPlusBtn} onPress={() => setShowAddModelModal(true)}><Text style={styles.addPlusBtnText}>+</Text></TouchableOpacity></View>
-          <View style={styles.row}><ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginRight: 8 }}>{yearsList.map(y => (<TouchableOpacity key={y} style={[styles.memoryPill, compatYear === y && { backgroundColor: '#DC2626' }]} onPress={() => setCompatYear(y)}><Text style={[styles.memoryPillText, compatYear === y && { color: '#FFF' }]}>{y}</Text></TouchableOpacity>))}</ScrollView><TouchableOpacity style={[styles.addPlusBtn, { backgroundColor: '#10B981' }]} onPress={addCompatVehicle}><Text style={styles.addPlusBtnText}>✓</Text></TouchableOpacity></View>
+        <Text style={[styles.label, { marginTop: 12 }]}>5.2 Compatibilitate Vehicule (Vertical & Alfabetic)</Text>
+        <View style={{ gap: 10 }}>
+          <View>
+            <Text style={styles.subLabel}>Marcă:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[...brandsList].sort().map(b => (<TouchableOpacity key={b} style={[styles.memoryPill, compatBrand === b && { backgroundColor: '#DC2626' }]} onPress={() => setCompatBrand(b)}><Text style={[styles.memoryPillText, compatBrand === b && { color: '#FFF' }]}>{b}</Text></TouchableOpacity>))}
+            </ScrollView>
+            <TouchableOpacity style={styles.textBtnPlus} onPress={() => setShowAddBrandModal(true)}><Text style={styles.textBtnPlusText}>+ Adaugă Marcă</Text></TouchableOpacity>
+          </View>
+
+          <View>
+            <Text style={styles.subLabel}>Model:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[...modelsList].sort().map(m => (<TouchableOpacity key={m} style={[styles.memoryPill, compatModel === m && { backgroundColor: '#DC2626' }]} onPress={() => setCompatModel(m)}><Text style={[styles.memoryPillText, compatModel === m && { color: '#FFF' }]}>{m}</Text></TouchableOpacity>))}
+            </ScrollView>
+            <TouchableOpacity style={styles.textBtnPlus} onPress={() => setShowAddModelModal(true)}><Text style={styles.textBtnPlusText}>+ Adaugă Model</Text></TouchableOpacity>
+          </View>
+
+          <View>
+            <Text style={styles.subLabel}>An:</Text>
+            <View style={styles.row}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1, marginRight: 8 }}>
+                {[...yearsList].sort().map(y => (<TouchableOpacity key={y} style={[styles.memoryPill, compatYear === y && { backgroundColor: '#DC2626' }]} onPress={() => setCompatYear(y)}><Text style={[styles.memoryPillText, compatYear === y && { color: '#FFF' }]}>{y}</Text></TouchableOpacity>))}
+              </ScrollView>
+              <TouchableOpacity style={[styles.addPlusBtn, { backgroundColor: '#10B981' }]} onPress={addCompatVehicle}><Text style={styles.addPlusBtnText}>✓</Text></TouchableOpacity>
+            </View>
+          </View>
         </View>
         <View style={[styles.chipsWrap, { marginTop: 10 }]}>{compatibleVehicles.map((v, i) => (<TouchableOpacity key={i} style={styles.subTagActive} onPress={() => setCompatibleVehicles(compatibleVehicles.filter((_, idx) => idx !== i))}><Text style={styles.subTagText}>🚘 {v} ✕</Text></TouchableOpacity>))}</View>
-
-        <Text style={[styles.label, { marginTop: 14 }]}>6. Cod Producător</Text>
-        <TextInput style={styles.input} placeholder="Producător..." placeholderTextColor="#6B7280" value={producerCode} onChangeText={setProducerCode} />
+      </View>
+          <View style={styles.card}>
+        <Text style={styles.label}>6. Cod Producător</Text>
+        <TextInput style={styles.input} placeholder="Producător..." placeholderTextColor="#6B7280" value={producerCode} onChangeText={t => { setProducerCode(t); setShowProducerSuggestions(true); }} />
+        {showProducerSuggestions && filteredProducerSuggestions.length > 0 && (
+          <View style={styles.suggestionsBox}>{filteredProducerSuggestions.map((s, i) => (<TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => { setProducerCode(s); setShowProducerSuggestions(false); }}><Text style={styles.suggestionText}>💡 {s}</Text></TouchableOpacity>))}</View>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -314,45 +386,45 @@ export default function AddPartScreen({ goBack, onSavePartToStock }) {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>8. Stare Piesă</Text>
+        <Text style={styles.label}>8. Stare & Preț</Text>
         <View style={styles.chipsWrap}>{['Neverificat', 'Verificat', 'Stare bună', 'Stare ok cu defect'].map(st => (<TouchableOpacity key={st} style={[styles.catChip, condition === st && styles.catChipActive]} onPress={() => setCondition(st)}><Text style={[styles.catChipText, condition === st && styles.catChipTextActive]}>{st}</Text></TouchableOpacity>))}</View>
-        {condition === 'Stare ok cu defect' && (<View style={{ marginTop: 12 }}><Text style={styles.defectLabel}>Defect:</Text><TextInput style={[styles.input, { borderColor: '#EF4444', marginBottom: 0 }]} placeholder="Descrie defectul..." placeholderTextColor="#6B7280" value={defectDetails} onChangeText={setDefectDetails} /></View>)}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>9. Preț</Text>
-        <View style={styles.row}>
-          <TextInput style={[styles.input, { flex: 1, marginRight: 10, marginBottom: 0 }]} placeholder="Suma..." placeholderTextColor="#6B7280" keyboardType="numeric" value={price} onChangeText={setPrice} />
+        {condition === 'Stare ok cu defect' && (<View style={{ marginTop: 12 }}><TextInput style={[styles.input, { borderColor: '#EF4444', marginBottom: 0 }]} placeholder="Descrie defectul..." placeholderTextColor="#6B7280" value={defectDetails} onChangeText={setDefectDetails} /></View>)}
+        <View style={[styles.row, { marginTop: 12 }]}>
+          <TextInput style={[styles.input, { flex: 1, marginRight: 10, marginBottom: 0 }]} placeholder="Preț..." placeholderTextColor="#6B7280" keyboardType="numeric" value={price} onChangeText={setPrice} />
           <TouchableOpacity style={[styles.currencyBtn, currency === 'LEI' && styles.currencyBtnActive]} onPress={() => setCurrency('LEI')}><Text style={styles.currencyBtnText}>LEI</Text></TouchableOpacity>
           <TouchableOpacity style={[styles.currencyBtn, currency === 'EURO' && styles.currencyBtnActive]} onPress={() => setCurrency('EURO')}><Text style={styles.currencyBtnText}>EURO</Text></TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>10. Locație</Text>
-        <View style={styles.row}>{['Depozit', 'Curte', 'Mașină'].map(loc => (<TouchableOpacity key={loc} style={[styles.locTabBtn, locationType === loc && styles.locTabBtnActive]} onPress={() => setLocationType(loc)}><Text style={[styles.locTabText, locationType === loc && styles.locTabTextActive]}>{loc}</Text></TouchableOpacity>))}</View>
-        {(locationType === 'Depozit' || locationType === 'Curte') && (
-          <View style={[styles.row, { marginTop: 12 }]}>
-            <TextInput style={[styles.input, { flex: 1, marginRight: 6, marginBottom: 0 }]} placeholder="Raft" placeholderTextColor="#6B7280" value={locRaft} onChangeText={setLocRaft} />
-            <TextInput style={[styles.input, { flex: 1, marginHorizontal: 6, marginBottom: 0 }]} placeholder="Col" placeholderTextColor="#6B7280" value={locColoana} onChangeText={setLocColoana} />
-            <TextInput style={[styles.input, { flex: 1, marginLeft: 6, marginBottom: 0 }]} placeholder="Niv" placeholderTextColor="#6B7280" value={locNivel} onChangeText={setLocNivel} />
+      <TouchableOpacity style={styles.saveButton} onPress={handleSavePart}><Text style={styles.saveButtonText}>💾 Salvează piesa în stoc</Text></TouchableOpacity>
+
+      <Modal visible={zoomImage !== null} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.zoomCard}>
+            <TouchableOpacity onPress={() => setZoomImage(null)} style={{ alignSelf: 'flex-end', marginBottom: 10 }}>
+              <Text style={{ color: '#FFF', fontSize: 22, fontWeight: 'bold' }}>✕</Text>
+            </TouchableOpacity>
+            {zoomImage && <Image source={{ uri: zoomImage }} style={styles.zoomImageFull} resizeMode="contain" />}
           </View>
-        )}
-        {locationType === 'Curte' && (<View style={{ marginTop: 12 }}><TextInput style={styles.input} placeholder="Zonă curte..." placeholderTextColor="#6B7280" value={yardCustomLoc} onChangeText={setYardCustomLoc} /></View>)}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>📝 Alte detalii</Text>
-        <TextInput style={[styles.input, { height: 70, paddingTop: 8, marginBottom: 0 }]} placeholder="Observații..." placeholderTextColor="#6B7280" multiline={true} value={otherDetails} onChangeText={setOtherDetails} />
-      </View>
-
-      <TouchableOpacity style={styles.saveButton} onPress={handleSavePart}><Text style={styles.saveButtonText}>💾 Salvează piesa</Text></TouchableOpacity>
+        </View>
+      </Modal>
 
       <Modal visible={activeCategoryModal !== null} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}><Text style={styles.modalTitle}>{activeCategoryModal}</Text><TouchableOpacity onPress={() => setActiveCategoryModal(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity></View>
-            <ScrollView style={{ maxHeight: 180, marginVertical: 8 }}><View style={styles.chipsWrap}>{(categoriesData[activeCategoryModal] || []).map(sub => (<TouchableOpacity key={sub} style={[styles.catChip, selectedSubcategories.includes(sub) && styles.catChipActive]} onPress={() => toggleSubcategory(activeCategoryModal, sub)}><Text style={[styles.catChipText, selectedSubcategories.includes(sub) && styles.catChipTextActive]}>{sub}</Text></TouchableOpacity>))}</View></ScrollView>
+            <ScrollView style={{ maxHeight: 200, marginVertical: 8 }}>
+              <View style={styles.chipsWrap}>
+                {([...(categoriesData[activeCategoryModal] || [])].sort()).map(sub => {
+                  const isChecked = selectedSubcategories.includes(sub);
+                  return (
+                    <TouchableOpacity key={sub} style={[styles.catChip, isChecked && styles.catChipActive]} onPress={() => toggleSubcategory(activeCategoryModal, sub)}>
+                      <Text style={[styles.catChipText, isChecked && styles.catChipTextActive]}>{isChecked ? '✓ ' : ''}{sub}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
             <View style={styles.row}><TextInput style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0 }]} placeholder="Subcategorie nouă..." placeholderTextColor="#6B7280" value={newSubcatText} onChangeText={setNewSubcatText} /><TouchableOpacity style={styles.addPlusBtn} onPress={addSubcategory}><Text style={styles.addPlusBtnText}>+</Text></TouchableOpacity></View>
             <TouchableOpacity style={[styles.saveButton, { marginTop: 12, height: 40 }]} onPress={() => setActiveCategoryModal(null)}><Text style={styles.saveButtonText}>Gata</Text></TouchableOpacity>
           </View>
@@ -386,11 +458,17 @@ const styles = StyleSheet.create({
   bigMenuDesc: { color: '#9CA3AF', fontSize: 12, marginTop: 2 },
   selectListItem: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 12, padding: 16, marginBottom: 10 },
   selectListTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: 'bold' },
+  selectListGreen: { color: '#10B981', fontSize: 12, marginTop: 4 },
   card: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 14, padding: 14, marginBottom: 14 },
   sectionHeader: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
   grid2: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
   mediaBtn: { width: '48%', backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   mediaBtnText: { color: '#E2E8F0', fontSize: 12, fontWeight: '600' },
+  previewThumb: { width: 60, height: 60, borderRadius: 8, borderWidth: 1, borderColor: '#374151' },
+  qrGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
+  qrThumbCard: { width: '30%', backgroundColor: '#161920', borderWidth: 1, borderColor: '#374151', borderRadius: 10, padding: 6, alignItems: 'center' },
+  qrThumbImage: { width: '100%', height: 70, borderRadius: 6 },
+  qrThumbText: { color: '#E2E8F0', fontSize: 11, marginTop: 4 },
   qrSuccessBadge: { marginTop: 12, backgroundColor: 'rgba(16, 185, 129, 0.15)', borderWidth: 1, borderColor: '#10B981', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   qrSuccessText: { color: '#10B981', fontSize: 13, fontWeight: 'bold' },
   qrRemoveText: { color: '#10B981', fontSize: 14, fontWeight: 'bold', paddingLeft: 10 },
@@ -402,12 +480,12 @@ const styles = StyleSheet.create({
   suggestionText: { color: '#E2E8F0', fontSize: 13 },
   memoryPill: { backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6 },
   memoryPillText: { color: '#9CA3AF', fontSize: 12 },
+  textBtnPlus: { marginTop: 4, marginBottom: 8 },
+  textBtnPlusText: { color: '#EF4444', fontSize: 12, fontWeight: 'bold' },
   row: { flexDirection: 'row', alignItems: 'center' },
   selectorBox: { backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 10, padding: 10 },
   selectorBoxLabel: { color: '#9CA3AF', fontSize: 11 },
   selectorBoxValue: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', marginTop: 2 },
-  fallbackBox: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1F2937' },
-  fallbackTitle: { color: '#F59E0B', fontSize: 12, fontWeight: '600', marginBottom: 8 },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip: { backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   catChipActive: { backgroundColor: 'rgba(220, 38, 38, 0.2)', borderColor: '#DC2626' },
@@ -422,19 +500,16 @@ const styles = StyleSheet.create({
   addPlusBtnText: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
   dropdownHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dropdownArrow: { color: '#9CA3AF', fontSize: 14 },
-  defectLabel: { color: '#EF4444', fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
   currencyBtn: { backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 10, paddingHorizontal: 14, height: 44, justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
   currencyBtnActive: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
   currencyBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' },
-  locTabBtn: { flex: 1, backgroundColor: '#0F1115', borderWidth: 1, borderColor: '#374151', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginHorizontal: 3 },
-  locTabBtnActive: { backgroundColor: 'rgba(220, 38, 38, 0.2)', borderColor: '#DC2626' },
-  locTabText: { color: '#9CA3AF', fontSize: 13, fontWeight: '600' },
-  locTabTextActive: { color: '#FFFFFF', fontWeight: 'bold' },
   saveButton: { backgroundColor: '#DC2626', borderRadius: 12, height: 52, justifyContent: 'center', alignItems: 'center', marginTop: 6 },
   saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#374151', borderRadius: 16, padding: 18 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   modalTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: 'bold' },
   modalClose: { color: '#9CA3AF', fontSize: 20, fontWeight: 'bold' },
+  zoomCard: { width: '100%', height: '70%', justifyContent: 'center', alignItems: 'center' },
+  zoomImageFull: { width: '100%', height: '100%', borderRadius: 12 },
 });
