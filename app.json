@@ -6,9 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "https://docs.expo.dev/static/images/icon.png",
     "splash": {
-      "image": "https://docs.expo.dev/static/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
