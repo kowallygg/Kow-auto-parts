@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddPartScreen from './AddPartScreen';
 import StockScreen from './StockScreen';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'add', 'stock'
+  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'add', 'stock', 'cars', 'sales', 'scan'
   const [stockParts, setStockParts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Încărcăm stocul salvat în memoria telefonului la pornire
   useEffect(() => {
     loadStock();
   }, []);
@@ -54,42 +54,80 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.heroBox}>
-        <Text style={styles.heroTitle}>KOW Auto Parts</Text>
-        <Text style={styles.heroSub}>Gestionare Inteligentă Stoc Piese</Text>
+      {/* Antetul scris frumos sus */}
+      <View style={styles.headerBox}>
+        <Text style={styles.headerTitle}>KOW Auto Parts</Text>
+        <Text style={styles.headerSub}>Gestionare Stoc & Piese Auto</Text>
       </View>
 
-      <View style={styles.menuContainer}>
-        <TouchableOpacity style={styles.menuButtonPrimary} onPress={() => setCurrentScreen('add')}>
-          <Text style={styles.menuIcon}>➕</Text>
-          <View>
-            <Text style={styles.menuBtnTitle}>Adaugă Piesă Nouă</Text>
-            <Text style={styles.menuBtnDesc}>Formular complet cu poze și QR</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuButton} onPress={() => setCurrentScreen('stock')}>
-          <Text style={styles.menuIcon}>📦</Text>
-          <View>
-            <Text style={styles.menuBtnTitle}>Vezi Stocul ({stockParts.length})</Text>
-            <Text style={styles.menuBtnDesc}>Piese salvate și memorate</Text>
-          </View>
-        </TouchableOpacity>
+      {/* Bara de căutare sus */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Caută piese, cod OEM, mașini..."
+          placeholderTextColor="#6B7280"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
+
+      {/* Butonul Mașinile mele */}
+      <TouchableOpacity style={styles.navButton} onPress={() => setCurrentScreen('cars')}>
+        <Text style={styles.navButtonIcon}>🚗</Text>
+        <Text style={styles.navButtonText}>Mașinile mele</Text>
+      </TouchableOpacity>
+
+      {/* Butonul Vânzări */}
+      <TouchableOpacity style={styles.navButton} onPress={() => setCurrentScreen('sales')}>
+        <Text style={styles.navButtonIcon}>💰</Text>
+        <Text style={styles.navButtonText}>Vânzări</Text>
+      </TouchableOpacity>
+
+      {/* Butonul Scanează cod QR */}
+      <TouchableOpacity style={styles.navButtonScan} onPress={() => setCurrentScreen('scan')}>
+        <Text style={styles.navButtonIcon}>📷</Text>
+        <Text style={styles.navButtonTextScan}>Scanează cod QR</Text>
+      </TouchableOpacity>
+
+      {/* Butonul Adaugă Piesă */}
+      <TouchableOpacity style={styles.primaryButton} onPress={() => setCurrentScreen('add')}>
+        <Text style={styles.primaryButtonIcon}>➕</Text>
+        <View>
+          <Text style={styles.primaryButtonTitle}>Adaugă piesă</Text>
+          <Text style={styles.primaryButtonDesc}>Formular detalii și poze</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Butonul Stoc */}
+      <TouchableOpacity style={styles.secondaryButton} onPress={() => setCurrentScreen('stock')}>
+        <Text style={styles.secondaryButtonIcon}>📦</Text>
+        <View>
+          <Text style={styles.secondaryButtonTitle}>Stoc piese ({stockParts.length})</Text>
+          <Text style={styles.secondaryButtonDesc}>Vezi piesele salvate</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F1115', padding: 20, justifyContent: 'center' },
-  heroBox: { alignItems: 'center', marginBottom: 40 },
-  heroTitle: { color: '#FFFFFF', fontSize: 26, fontWeight: 'bold' },
-  heroSub: { color: '#9CA3AF', fontSize: 14, marginTop: 6 },
-  menuContainer: { gap: 16 },
-  menuButtonPrimary: { backgroundColor: 'rgba(220, 38, 38, 0.15)', borderWidth: 1, borderColor: '#DC2626', borderRadius: 16, padding: 20, flexDirection: 'row', alignItems: 'center' },
-  menuButton: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 16, padding: 20, flexDirection: 'row', alignItems: 'center' },
-  menuIcon: { fontSize: 32, marginRight: 16 },
-  menuBtnTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
-  menuBtnDesc: { color: '#9CA3AF', fontSize: 12, marginTop: 3 },
+  container: { flex: 1, backgroundColor: '#0F1115', padding: 16, paddingTop: 50 },
+  headerBox: { alignItems: 'center', marginBottom: 16 },
+  headerTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', letterSpacing: 0.5 },
+  headerSub: { color: '#9CA3AF', fontSize: 12, marginTop: 4 },
+  searchContainer: { marginBottom: 16 },
+  searchInput: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 12, color: '#FFFFFF', paddingHorizontal: 14, height: 46, fontSize: 14 },
+  navButton: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  navButtonIcon: { fontSize: 20, marginRight: 12 },
+  navButtonText: { color: '#E2E8F0', fontSize: 14, fontWeight: '600' },
+  navButtonScan: { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: '#3B82F6', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  navButtonTextScan: { color: '#60A5FA', fontSize: 14, fontWeight: 'bold' },
+  primaryButton: { backgroundColor: 'rgba(220, 38, 38, 0.15)', borderWidth: 1, borderColor: '#DC2626', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  primaryButtonIcon: { fontSize: 24, marginRight: 14 },
+  primaryButtonTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  primaryButtonDesc: { color: '#9CA3AF', fontSize: 11, marginTop: 2 },
+  secondaryButton: { backgroundColor: '#161920', borderWidth: 1, borderColor: '#1F2937', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  secondaryButtonIcon: { fontSize: 24, marginRight: 14 },
+  secondaryButtonTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  secondaryButtonDesc: { color: '#9CA3AF', fontSize: 11, marginTop: 2 },
 });
-      
