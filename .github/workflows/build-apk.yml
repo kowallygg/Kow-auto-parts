@@ -9,11 +9,11 @@ on:
 
 jobs:
   build:
-    name: Generate Android APK
+    name: Build Android Release APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -33,16 +33,16 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
 
-      - name: Build APK
+      - name: Build Release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: KOW-AUTO-PARTS-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: KOW-AUTO-PARTS-RELEASE-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
           
