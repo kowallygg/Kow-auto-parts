@@ -11,34 +11,37 @@ import {
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CaroserieIcon from './CaroserieIcons';
 
 const STORAGE_KEY = '@kow_caroserie_subcategorii';
 
-// Subcategoriile principale
 const DEFAULT_SUBCATEGORIES = [
-  { id: 'bara_fata', name: 'Bară față', form: null },
-  { id: 'bara_spate', name: 'Bară spate', form: null },
-  { id: 'fata_completa', name: 'Față completă', form: null },
-  { id: 'aripa_fata', name: 'Aripă față', form: null },
-  { id: 'aripa_spate', name: 'Aripă spate', form: null },
-  { id: 'capota', name: 'Capotă', form: null },
-  { id: 'portbagaj', name: 'Portbagaj / Haion', form: null },
-  { id: 'usa', name: 'Ușă', form: null },
-  { id: 'prag', name: 'Prag', form: null },
-  { id: 'grila', name: 'Grilă', form: null },
-  { id: 'carenaj', name: 'Carenaj roată', form: null },
-  { id: 'scuturi', name: 'Scuturi', form: null },
-  { id: 'geamuri', name: 'Geamuri', form: null },
-  { id: 'oglinzi', name: 'Oglinzi exterioare', form: null },
-  { id: 'faruri', name: 'Faruri', form: null },
-  { id: 'stopuri', name: 'Stopuri', form: null },
-  { id: 'maner', name: 'Mâner exterior', form: null },
-  { id: 'eleron', name: 'Eleron', form: null },
-  { id: 'ornament', name: 'Ornament exterior', form: null },
-  { id: 'bandou', name: 'Bandou', form: null },
+  { id: 'bara_fata', name: 'Bară față', icon: 'bara_fata' },
+  { id: 'bara_spate', name: 'Bară spate', icon: 'bara_spate' },
+  { id: 'fata_completa', name: 'Față completă', icon: 'fata_completa' },
+  { id: 'aripa_fata', name: 'Aripă față', icon: 'aripa_fata' },
+  { id: 'aripa_spate', name: 'Aripă spate', icon: 'aripa_spate' },
+  { id: 'capota', name: 'Capotă', icon: 'capota' },
+  { id: 'portbagaj', name: 'Portbagaj / Haion', icon: 'portbagaj' },
+  { id: 'usa', name: 'Ușă', icon: 'usa' },
+  { id: 'prag', name: 'Prag', icon: 'prag' },
+  { id: 'grila', name: 'Grilă', icon: 'grila' },
+  { id: 'carenaj', name: 'Carenaj roată', icon: 'carenaj' },
+  { id: 'scuturi', name: 'Scuturi', icon: 'scuturi' },
+  { id: 'geamuri', name: 'Geamuri', icon: 'geamuri' },
+  { id: 'oglinzi', name: 'Oglinzi exterioare', icon: 'oglinzi' },
+  { id: 'faruri', name: 'Faruri', icon: 'faruri' },
+  { id: 'stopuri', name: 'Stopuri', icon: 'stopuri' },
+  { id: 'maner', name: 'Mâner exterior', icon: 'maner' },
+  { id: 'eleron', name: 'Eleron', icon: 'eleron' },
+  { id: 'ornament', name: 'Ornament exterior', icon: 'ornament' },
+  { id: 'bandou', name: 'Bandou', icon: 'bandou' },
 ];
 
-export default function CaroserieExterior({ onSelectSubcategory, goBack }) {
+export default function CaroserieExterior({
+  onSelectSubcategory,
+  goBack,
+}) {
   const [subcategories, setSubcategories] = useState(
     DEFAULT_SUBCATEGORIES
   );
@@ -86,7 +89,7 @@ export default function CaroserieExterior({ onSelectSubcategory, goBack }) {
     const newItem = {
       id: `custom_${Date.now()}`,
       name,
-      form: null,
+      icon: 'custom',
       custom: true,
     };
 
@@ -103,7 +106,7 @@ export default function CaroserieExterior({ onSelectSubcategory, goBack }) {
       setSubcategories(updated);
       setNewSubcategory('');
 
-      Alert.alert('Succes', 'Subcategoria a fost adăugată.');
+      Alert.alert('Succes', 'Subcategoria a fost salvată.');
     } catch (error) {
       Alert.alert('Eroare', 'Subcategoria nu a putut fi salvată.');
     }
@@ -128,6 +131,7 @@ export default function CaroserieExterior({ onSelectSubcategory, goBack }) {
         </TouchableOpacity>
 
         <Text style={styles.title}>Caroserie și exterior</Text>
+
         <Text style={styles.subtitle}>
           Alege subcategoria piesei
         </Text>
@@ -140,7 +144,16 @@ export default function CaroserieExterior({ onSelectSubcategory, goBack }) {
               key={item.id}
               style={styles.categoryButton}
               onPress={() => selectSubcategory(item)}
+              activeOpacity={0.75}
             >
+              <View style={styles.iconContainer}>
+                <CaroserieIcon
+                  name={item.icon}
+                  size={43}
+                  color="#65B9FF"
+                />
+              </View>
+
               <Text style={styles.categoryText}>
                 {item.name}
               </Text>
@@ -180,41 +193,49 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#101820',
   },
+
   header: {
     padding: 20,
     paddingTop: 45,
   },
+
   backButton: {
     marginBottom: 20,
   },
+
   backText: {
     color: '#55B8FF',
     fontSize: 16,
   },
+
   title: {
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: 'bold',
   },
+
   subtitle: {
     color: '#AAAAAA',
     fontSize: 14,
     marginTop: 6,
   },
+
   content: {
     padding: 15,
     paddingBottom: 40,
   },
+
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+
   categoryButton: {
     width: '48%',
-    minHeight: 65,
+    minHeight: 112,
     backgroundColor: '#202D38',
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 10,
@@ -222,24 +243,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#344653',
   },
+
+  iconContainer: {
+    width: 55,
+    height: 55,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+
   categoryText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
+
   addSection: {
     marginTop: 20,
     padding: 15,
     backgroundColor: '#202D38',
     borderRadius: 12,
   },
+
   addTitle: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: 'bold',
     marginBottom: 12,
   },
+
   input: {
     backgroundColor: '#101820',
     color: '#FFFFFF',
@@ -249,12 +282,14 @@ const styles = StyleSheet.create({
     borderColor: '#40515F',
     marginBottom: 12,
   },
+
   addButton: {
     backgroundColor: '#168B58',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
+
   addButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
