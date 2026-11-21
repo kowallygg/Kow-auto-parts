@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import CaroserieExterior from './forms/caroserie/CaroserieExterior';
 
 const CATEGORIES = [
   { id: 'motor', label: 'Motor și anexe', icon: '⚙️' },
@@ -159,6 +160,8 @@ export default function AddPartScreen({
   onSavePartToStock,
 }) {
   const [category, setCategory] = useState('');
+const [caroserieOpen, setCaroserieOpen] = useState(false);
+const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [photos, setPhotos] = useState([]);
   const [qrValidated, setQrValidated] = useState(false);
@@ -336,7 +339,46 @@ export default function AddPartScreen({
 
     goBack();
   };
+if (category === 'caroserie' && caroserieOpen) {
+  if (selectedSubcategory) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => setSelectedSubcategory(null)}
+            style={styles.backButton}
+          >
+            <Text style={styles.backText}>‹ Înapoi</Text>
+          </TouchableOpacity>
 
+          <Text style={styles.headerTitle}>
+            {selectedSubcategory.name}
+          </Text>
+
+          <View style={{ width: 64 }} />
+        </View>
+
+        <View style={{ padding: 20 }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
+            Formularul pentru {selectedSubcategory.name} va fi adăugat aici.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <CaroserieExterior
+      onSelectSubcategory={item =>
+        setSelectedSubcategory(item)
+      }
+      goBack={() => {
+        setCaroserieOpen(false);
+        setCategory('');
+      }}
+    />
+  );
+}
   const fields = CATEGORY_FIELDS[category] || [];
 
   return (
