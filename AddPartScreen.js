@@ -482,7 +482,16 @@ if (category === 'caroserie' && caroserieOpen) {
                   category === item.id &&
                     styles.categorySelected,
                 ]}
-                onPress={() => setCategory(item.id)}
+                onPress={() => {
+  setCategory(item.id);
+
+  if (item.id === 'caroserie') {
+    setCaroserieOpen(true);
+    setSelectedSubcategory(null);
+  } else {
+    setCaroserieOpen(false);
+  }
+}}
               >
                 <Text style={styles.categoryIcon}>
                   {item.icon}
