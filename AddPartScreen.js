@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import CaroserieExterior from './forms/caroserie/CaroserieExterior';
-
+import BaraFataForm from './forms/caroserie/BaraFataForm';
 const CATEGORIES = [
   { id: 'motor', label: 'Motor și anexe', icon: '⚙️' },
   { id: 'transmisie', label: 'Transmisie', icon: '🔩' },
@@ -341,32 +341,41 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   };
 if (category === 'caroserie' && caroserieOpen) {
   if (selectedSubcategory) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => setSelectedSubcategory(null)}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>‹ Înapoi</Text>
-          </TouchableOpacity>
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => setSelectedSubcategory(null)}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>‹ Înapoi</Text>
+        </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>
-            {selectedSubcategory.name}
-          </Text>
+        <Text style={styles.headerTitle}>
+          {selectedSubcategory.name}
+        </Text>
 
-          <View style={{ width: 64 }} />
-        </View>
-
-        <View style={{ padding: 20 }}>
-          <Text style={{ color: '#FFFFFF', fontSize: 16 }}>
-            Formularul pentru {selectedSubcategory.name} va fi adăugat aici.
-          </Text>
-        </View>
+        <View style={{ width: 64 }} />
       </View>
-    );
-  }
 
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        {selectedSubcategory.id === 'bara_fata' ? (
+          <BaraFataForm
+            value={form.baraFata}
+            onChange={value => update('baraFata', value)}
+          />
+        ) : (
+          <Text style={{ color: '#FFFFFF' }}>
+            Formularul acestei subcategorii va fi construit ulterior.
+          </Text>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
   return (
     <CaroserieExterior
       onSelectSubcategory={item =>
