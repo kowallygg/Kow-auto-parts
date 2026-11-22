@@ -53,17 +53,15 @@ export default function BaraFataForm({
   }));
 
   const update = (key, newValue) => {
-    setData(current => {
-      const next = {
-        ...current,
-        [key]: newValue,
-      };
-
-      if (onChange) onChange(next);
-
-      return next;
-    });
+  const next = {
+    ...data,
+    [key]: newValue,
   };
+
+  setData(next);
+
+  if (onChange) onChange(next);
+};
 
   const updateNested = (section, key, field, newValue) => {
     const nextSection = {
