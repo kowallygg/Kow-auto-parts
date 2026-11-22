@@ -144,6 +144,7 @@ const INITIAL_FORM = {
   car: '',
   qrCode: '',
   price: '',
+quantity: '1',
   currency: 'EUR',
   condition: 'Stare bună',
   verification: 'Neverificat',
@@ -334,7 +335,12 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
       form.locationType === 'Afară'
         ? `${form.locationType} - Raft: ${form.shelf || '-'}, Coloană: ${form.column || '-'}, Nivel: ${form.level || '-'}`
         : `${form.locationType} - ${form.locationDetails || '-'}`;
+const quantity = Number.parseInt(form.quantity, 10);
 
+if (!Number.isInteger(quantity) || quantity < 1) {
+  alert('Introdu o cantitate validă, mai mare decât zero.');
+  return;
+}
     const newPart = {
       ...form,
       id: form.qrCode.trim(),
@@ -349,7 +355,7 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
         : `0 ${form.currency}`,
       photos,
       dateAdded: new Date().toLocaleDateString('ro-RO'),
-      quantity: 1,
+      quantity: quantity,
     };
 
     if (typeof onSavePartToStock !== 'function') {
@@ -722,6 +728,13 @@ if (category === 'caroserie' && caroserieOpen) {
 
         {/* 6. PREȚ */}
         <Section title="6. Preț">
+<Field
+  label="Cantitate în stoc"
+  value={form.quantity}
+  onChangeText={value => update('quantity', value)}
+  keyboardType="number-pad"
+  placeholder="1"
+/>
 
           <Field
             label="Preț de vânzare"
