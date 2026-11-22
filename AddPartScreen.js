@@ -121,6 +121,7 @@ const CATEGORY_FIELDS = {
 
 const INITIAL_FORM = {
   partName: '',
+  baraFata: null,
   carMake: '',
   carModel: '',
   engine: '',
