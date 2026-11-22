@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,25 +43,71 @@ const INITIAL_DATA = {
   extraFeatures: [],
 };
 
+function buildFormData(value) {
+  return {
+    ...INITIAL_DATA,
+    ...(value || {}),
+    washers: {
+      ...INITIAL_DATA.washers,
+      ...(value?.washers || {}),
+      left: {
+        ...INITIAL_DATA.washers.left,
+        ...(value?.washers?.left || {}),
+      },
+      right: {
+        ...INITIAL_DATA.washers.right,
+        ...(value?.washers?.right || {}),
+      },
+    },
+    fogLights: {
+      ...INITIAL_DATA.fogLights,
+      ...(value?.fogLights || {}),
+      left: {
+        ...INITIAL_DATA.fogLights.left,
+        ...(value?.fogLights?.left || {}),
+      },
+      right: {
+        ...INITIAL_DATA.fogLights.right,
+        ...(value?.fogLights?.right || {}),
+      },
+    },
+    oemCodes: Array.isArray(value?.oemCodes)
+      ? value.oemCodes
+      : [''],
+    sensorCodes: Array.isArray(value?.sensorCodes)
+      ? value.sensorCodes
+      : [''],
+    grilles: Array.isArray(value?.grilles)
+      ? value.grilles
+      : [{ name: '', codes: [''] }],
+    extraFeatures: Array.isArray(value?.extraFeatures)
+      ? value.extraFeatures
+      : [],
+  };
+}
+
 export default function BaraFataForm({
   value,
   onChange,
 }) {
-  const [data, setData] = useState(() => ({
-    ...INITIAL_DATA,
-    ...(value || {}),
-  }));
+  const [data, setData] = useState(() => buildFormData(value));
+
+  useEffect(() => {
+    setData(buildFormData(value));
+  }, [value]);
 
   const update = (key, newValue) => {
-  const next = {
-    ...data,
-    [key]: newValue,
+    const next = {
+      ...data,
+      [key]: newValue,
+    };
+
+    setData(next);
+
+    if (onChange) {
+      onChange(next);
+    }
   };
-
-  setData(next);
-
-  if (onChange) onChange(next);
-};
 
   const updateNested = (section, key, field, newValue) => {
     const nextSection = {
