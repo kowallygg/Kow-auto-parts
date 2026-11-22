@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Alert,
   Image,
@@ -173,6 +173,8 @@ export default function AddPartScreen({
   const [form, setForm] = useState(INITIAL_FORM);
   const [photos, setPhotos] = useState([]);
   const [qrValidated, setQrValidated] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const update = (key, value) => {
     setForm(current => ({
@@ -311,7 +313,11 @@ export default function AddPartScreen({
   };
 
   // SALVARE PIESĂ
-  const savePart = () => {
+  const savePart = async () => {
+    if (savingRef.current) {
+      return;
+    }
+
     if (!category) {
       Alert.alert('Atenție', 'Selectează categoria piesei.');
       return;
@@ -347,7 +353,10 @@ export default function AddPartScreen({
     const quantity = Number.parseInt(form.quantity, 10);
 
     if (!Number.isInteger(quantity) || quantity < 1) {
-      alert('Introdu o cantitate validă, mai mare decât zero.');
+      Alert.alert(
+        'Cantitate invalidă',
+        'Introdu o cantitate validă, mai mare decât zero.'
+      );
       return;
     }
 
@@ -376,14 +385,32 @@ export default function AddPartScreen({
       return;
     }
 
-    onSavePartToStock(newPart);
+    savingRef.current = true;
+    setIsSaving(true);
 
-    Alert.alert(
-      'Salvat',
-      'Piesa a fost înregistrată în stoc.'
-    );
+    try {
+      await onSavePartToStock(newPart);
 
-    goBack();
+      savingRef.current = false;
+      setIsSaving(false);
+
+      Alert.alert(
+        'Salvat',
+        'Piesa a fost înregistrată în stoc.'
+      );
+
+      goBack();
+    } catch (error) {
+      console.log('Eroare la salvarea piesei:', error);
+
+      savingRef.current = false;
+      setIsSaving(false);
+
+      Alert.alert(
+        'Salvarea a eșuat',
+        'Piesa nu a fost salvată. Datele formularului au fost păstrate. Verifică memoria telefonului și încearcă din nou.'
+      );
+    }
   };
 
   if (category === 'caroserie' && caroserieOpen) {
@@ -461,6 +488,7 @@ export default function AddPartScreen({
         <TouchableOpacity
           onPress={goBack}
           style={styles.backButton}
+          disabled={isSaving}
         >
           <Text style={styles.backText}>‹ Înapoi</Text>
         </TouchableOpacity>
@@ -822,11 +850,17 @@ export default function AddPartScreen({
 
         {/* SALVARE */}
         <TouchableOpacity
-          style={styles.saveButton}
+          style={[
+            styles.saveButton,
+            isSaving && styles.saveButtonDisabled,
+          ]}
           onPress={savePart}
+          disabled={isSaving}
         >
           <Text style={styles.saveButtonText}>
-            ✓ Salvează piesa în stoc
+            {isSaving
+              ? 'Se salvează...'
+              : '✓ Salvează piesa în stoc'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -1191,6 +1225,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 2,
     marginBottom: 20,
+  },
+
+  saveButtonDisabled: {
+    backgroundColor: '#52665F',
+    opacity: 0.8,
   },
 
   saveButtonText: {
