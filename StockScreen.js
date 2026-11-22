@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,8 @@ export default function StockScreen({
   onDeletePart,
   onOpenPart,
 }) {
+  const [deletingId, setDeletingId] = useState(null);
+
   const getOemCode = item => {
     if (item.baraFata?.oemCodes?.length) {
       return item.baraFata.oemCodes.filter(Boolean).join(', ');
@@ -34,6 +37,44 @@ export default function StockScreen({
 
   const getColorCode = item => {
     return item.baraFata?.colorCode || item.colorCode || '';
+  };
+
+  const confirmDelete = item => {
+    if (deletingId !== null) {
+      return;
+    }
+
+    Alert.alert(
+      'Confirmare ștergere',
+      `Sigur vrei să ștergi piesa „${item.partName || 'fără denumire'}” din stoc?`,
+      [
+        {
+          text: 'Anulează',
+          style: 'cancel',
+        },
+        {
+          text: 'Șterge',
+          style: 'destructive',
+          onPress: async () => {
+            if (deletingId !== null) {
+              return;
+            }
+
+            setDeletingId(item.id);
+
+            try {
+              if (typeof onDeletePart === 'function') {
+                await onDeletePart(item.id);
+              }
+            } catch (error) {
+              console.log('Eroare la ștergerea piesei:', error);
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -66,12 +107,14 @@ export default function StockScreen({
             const oemCode = getOemCode(item);
             const colorCode = getColorCode(item);
             const isBodywork = item.category === 'caroserie';
+            const isDeleting = deletingId === item.id;
 
             return (
               <View key={item.id} style={styles.partCard}>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => onOpenPart && onOpenPart(item)}
+                  disabled={isDeleting}
                 >
                   <Text style={styles.partTitle}>
                     {item.partName || 'Piesă fără denumire'}
@@ -125,11 +168,17 @@ export default function StockScreen({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => onDeletePart(item.id)}
+                  style={[
+                    styles.deleteBtn,
+                    isDeleting && styles.deleteBtnDisabled,
+                  ]}
+                  onPress={() => confirmDelete(item)}
+                  disabled={isDeleting || deletingId !== null}
                 >
                   <Text style={styles.deleteBtnText}>
-                    🗑️ Șterge din stoc
+                    {isDeleting
+                      ? 'Se șterge...'
+                      : '🗑️ Șterge din stoc'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -260,6 +309,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
+  },
+  deleteBtnDisabled: {
+    opacity: 0.5,
   },
   deleteBtnText: {
     color: '#EF4444',
