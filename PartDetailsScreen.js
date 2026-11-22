@@ -1,4 +1,5 @@
 
+import React, { useState } from 'react';
 import {
   Alert,
   Image,
@@ -124,6 +125,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
       </View>
     );
   }
+
   const stockQuantity = Math.max(
     0,
     Number.parseInt(part.quantity, 10) || 0
@@ -143,10 +145,15 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
   const saleTotal = unitPrice * quantityToSell;
 
   const confirmSale = () => {
-    if (!Number.isInteger(quantityToSell) ||
-        quantityToSell < 1 ||
-        quantityToSell > stockQuantity) {
-      Alert.alert('Cantitate invalidă', 'Introdu o cantitate între 1 și cantitatea disponibilă în stoc.');
+    if (
+      !Number.isInteger(quantityToSell) ||
+      quantityToSell < 1 ||
+      quantityToSell > stockQuantity
+    ) {
+      Alert.alert(
+        'Cantitate invalidă',
+        'Introdu o cantitate între 1 și cantitatea disponibilă în stoc.'
+      );
       return;
     }
 
@@ -161,7 +168,10 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     }
 
     if (typeof onSellPart !== 'function') {
-      Alert.alert('Eroare', 'Funcția de înregistrare a vânzării nu este disponibilă.');
+      Alert.alert(
+        'Eroare',
+        'Funcția de înregistrare a vânzării nu este disponibilă.'
+      );
       return;
     }
 
@@ -182,6 +192,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     setCustomerName('');
     setCustomerPhone('');
   };
+
   const mainFields = [
     'partName',
     'carMake',
@@ -355,6 +366,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
             ))
           )}
         </View>
+
         <TouchableOpacity
           style={styles.sellButton}
           onPress={() => setSaleModalVisible(true)}
@@ -389,6 +401,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
           ) : null}
         </View>
       </Modal>
+
       <Modal
         visible={saleModalVisible}
         transparent
