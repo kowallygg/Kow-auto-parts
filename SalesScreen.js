@@ -1,96 +1,152 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function SalesScreen({ goBack }) {
-  const [activeTab, setActiveTab] = useState('returns');
+import React from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-  const pendingReturns = [
-    { id: '1', internalCode: 'P-025', name: 'Injectoare 2.0 TDI', client: 'Client Direct', soldDate: '10 Feb 2026', daysLeft: '26 zile rămase' },
-  ];
+export default function SalesScreen({ sales = [], goBack }) {
+  const formatDate = (dateValue) => {
+    if (!dateValue) {
+      return 'Dată indisponibilă';
+    }
 
-  const finalArchive = [
-    { id: '10', internalCode: 'P-012', name: 'Compresor AC', status: 'success', statusText: 'Piesă Vândută (Verde)', date: '15 Ian 2026' },
-    { id: '11', internalCode: 'P-018', name: 'Electromotor Golf 5', status: 'defective', statusText: 'Piesă Defectă / Retur (Roșu)', date: '22 Ian 2026' },
-  ];
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return 'Dată indisponibilă';
+    }
+
+    return date.toLocaleString('ro-RO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatMoney = (value, currency) => {
+    const amount = Number(value) || 0;
+    return `${amount.toFixed(2)} ${currency || 'EUR'}`;
+  };
+
+  const totalSales = sales.reduce(
+    (sum, sale) => sum + (Number(sale.total) || 0),
+    0
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      
-      {/* HEADER CU BUTON DE ÎNAPOI */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={goBack}
+          style={styles.backButton}
+        >
           <Text style={styles.backButtonText}>⬅ Înapoi</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Vânzări & Retururi (30 Zile)</Text>
+
+        <Text style={styles.headerTitle}>Istoric vânzări</Text>
+
         <View style={{ width: 60 }} />
       </View>
 
-      {/* TABS DE NAVIGARE INTERNĂ */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'returns' && styles.activeTabButton]}
-          onPress={() => setActiveTab('returns')}
-        >
-          <Text style={[styles.tabText, activeTab === 'returns' && styles.activeTabText]}>⏳ În Așteptare (30 Zile)</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.tabButton, activeTab === 'archive' && styles.activeTabButton]}
-          onPress={() => setActiveTab('archive')}
-        >
-          <Text style={[styles.tabText, activeTab === 'archive' && styles.activeTabText]}>📁 Arhivă Definitivă</Text>
-        </TouchableOpacity>
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryLabel}>
+          Număr total de vânzări
+        </Text>
+        <Text style={styles.summaryValue}>
+          {sales.length}
+        </Text>
+        <Text style={styles.summaryHint}>
+          Totalurile sunt afișate individual în moneda fiecărei vânzări.
+        </Text>
       </View>
 
-      {/* CONȚINUT TAB 1: RETURURI ÎN AȘTEPTARE 30 ZILE */}
-      {activeTab === 'returns' && (
+      {sales.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>💰</Text>
+          <Text style={styles.emptyTitle}>
+            Nu există încă vânzări
+          </Text>
+          <Text style={styles.emptyText}>
+            După ce înregistrezi prima vânzare din detaliile unei piese,
+            aceasta va apărea aici.
+          </Text>
+        </View>
+      ) : (
         <View style={styles.listContainer}>
-          <Text style={styles.sectionHint}>Piesele de aici pot reveni în stoc cu același QR sau pot deveni defecte.</Text>
-          {pendingReturns.map((item) => (
-            <View key={item.id} style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Vânzări înregistrate
+          </Text>
+
+          {sales.map((sale) => (
+            <View key={sale.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.internalBadge}>{item.internalCode}</Text>
-                <Text style={styles.timerBadge}>{item.daysLeft}</Text>
+                <Text style={styles.saleBadge}>
+                  VÂNZARE
+                </Text>
+                <Text style={styles.saleDate}>
+                  {formatDate(sale.date)}
+                </Text>
               </View>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardMeta}>Vândut către: {item.client} | Data: {item.soldDate}</Text>
-              
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.returnStockBtn} onPress={() => alert(`Piesa ${item.internalCode} revine în stoc cu același QR și cod intern!`)}>
-                  <Text style={styles.btnTextGreen}>🔄 Revenire Stoc</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.returnDefectBtn} onPress={() => alert(`Piesa ${item.internalCode} marcată ca defectă și mutată în roșu!`)}>
-                  <Text style={styles.btnTextRed}>⚠️ Piesă Defectă</Text>
-                </TouchableOpacity>
+
+              <Text style={styles.partName}>
+                {sale.partName || 'Piesă fără denumire'}
+              </Text>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Cantitate vândută</Text>
+                <Text style={styles.infoValue}>
+                  {sale.quantity}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Preț / bucată</Text>
+                <Text style={styles.infoValue}>
+                  {formatMoney(sale.unitPrice, sale.currency)}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Client</Text>
+                <Text style={styles.infoValue}>
+                  {sale.customerName || 'Nespecificat'}
+                </Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Telefon</Text>
+                <Text style={styles.infoValue}>
+                  {sale.customerPhone || 'Nespecificat'}
+                </Text>
+              </View>
+
+              {sale.qrCode ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Cod QR</Text>
+                  <Text style={styles.infoValue}>
+                    {sale.qrCode}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.totalBox}>
+                <Text style={styles.totalLabel}>
+                  Total încasat
+                </Text>
+                <Text style={styles.totalValue}>
+                  {formatMoney(sale.total, sale.currency)}
+                </Text>
               </View>
             </View>
           ))}
         </View>
       )}
-
-      {/* CONȚINUT TAB 2: ARHIVĂ DEFINITIVĂ (VERDE / ROȘU) */}
-      {activeTab === 'archive' && (
-        <View style={styles.listContainer}>
-          <Text style={styles.sectionHint}>🟢 Verde = Vândute cu succes | 🔴 Roșu = Defecte / Casate. Poți reactiva un anunț verde cu un QR nou!</Text>
-          {finalArchive.map((item) => (
-            <View key={item.id} style={[styles.card, item.status === 'success' ? styles.borderGreen : styles.borderRed]}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.internalBadge}>{item.internalCode}</Text>
-                <Text style={item.status === 'success' ? styles.textGreen : styles.textRed}>{item.statusText}</Text>
-              </View>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardMeta}>Finalizat la data: {item.date}</Text>
-
-              {item.status === 'success' && (
-                <TouchableOpacity style={styles.reactivateBtn} onPress={() => alert(`Reactivare piesă ${item.internalCode}: Se preiau pozele vechi, se generează un nou cod intern și se cere un nou QR!`)}>
-                  <Text style={styles.reactivateText}>♻️ Reactivează în Stoc (Păstrează Poze, QR Nou)</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-        </View>
-      )}
-
     </ScrollView>
   );
 }
@@ -98,6 +154,7 @@ export default function SalesScreen({ goBack }) {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
+    paddingTop: 40,
     backgroundColor: '#0F1115',
     flexGrow: 1,
   },
@@ -105,7 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#1F2937',
     paddingBottom: 12,
@@ -125,147 +182,137 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  tabRow: {
-    flexDirection: 'row',
+  summaryCard: {
     backgroundColor: '#161920',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  activeTabButton: {
-    backgroundColor: '#1F2937',
-  },
-  tabText: {
+  summaryLabel: {
     color: '#9CA3AF',
     fontSize: 12,
-    fontWeight: '600',
   },
-  activeTabText: {
+  summaryValue: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: 5,
   },
-  sectionHint: {
+  summaryHint: {
     color: '#6B7280',
     fontSize: 11,
+    marginTop: 6,
+  },
+  emptyCard: {
+    backgroundColor: '#161920',
+    borderWidth: 1,
+    borderColor: '#1F2937',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  emptyIcon: {
+    fontSize: 38,
     marginBottom: 12,
-    lineHeight: 15,
+  },
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
   },
   listContainer: {
     gap: 12,
   },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
   card: {
     backgroundColor: '#161920',
     borderWidth: 1,
-    borderColor: '#1F2937',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
     borderRadius: 12,
     padding: 14,
-  },
-  borderGreen: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-  },
-  borderRed: {
-    borderColor: 'rgba(239, 68, 68, 0.4)',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
+    gap: 8,
   },
-  internalBadge: {
-    backgroundColor: 'rgba(220, 38, 38, 0.2)',
-    color: '#EF4444',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  saleBadge: {
+    color: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 6,
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontWeight: '800',
     overflow: 'hidden',
   },
-  timerBadge: {
-    color: '#F59E0B',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  textGreen: {
-    color: '#10B981',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  textRed: {
-    color: '#EF4444',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  cardMeta: {
+  saleDate: {
     color: '#9CA3AF',
     fontSize: 11,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  partName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
     marginBottom: 12,
   },
-  actionRow: {
+  infoRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
     borderTopWidth: 1,
-    borderTopColor: '#1F2937',
-    paddingTop: 10,
+    borderTopColor: '#252D3A',
+    gap: 12,
   },
-  returnStockBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  returnDefectBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  btnTextGreen: {
-    color: '#10B981',
+  infoLabel: {
+    color: '#9CA3AF',
     fontSize: 12,
-    fontWeight: 'bold',
+    flex: 1,
   },
-  btnTextRed: {
-    color: '#EF4444',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  reactivateBtn: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  reactivateText: {
+  infoValue: {
     color: '#E2E8F0',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  totalBox: {
+    backgroundColor: '#101722',
+    borderRadius: 9,
+    padding: 13,
+    marginTop: 12,
+  },
+  totalLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
+  },
+  totalValue: {
+    color: '#4ADE80',
+    fontSize: 21,
+    fontWeight: '800',
+    marginTop: 4,
   },
 });
