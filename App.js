@@ -63,19 +63,40 @@ export default function App() {
       );
     } catch (e) {
       console.log('Eroare la salvarea stocului', e);
+      throw e;
     }
   };
 
-  const handleSavePartToStock = (newPart) => {
+  const handleSavePartToStock = async (newPart) => {
     const updated = [newPart, ...stockParts];
+
+    await saveStockToStorage(updated);
+
     setStockParts(updated);
-    saveStockToStorage(updated);
   };
 
-  const handleDeletePart = (id) => {
-    const updated = stockParts.filter(p => p.id !== id);
-    setStockParts(updated);
-    saveStockToStorage(updated);
+  const handleDeletePart = async (id) => {
+    try {
+      const updated = stockParts.filter(p => p.id !== id);
+
+      await saveStockToStorage(updated);
+
+      setStockParts(updated);
+
+      if (
+        selectedPart &&
+        String(selectedPart.id) === String(id)
+      ) {
+        setSelectedPart(null);
+        setCurrentScreen('stock');
+      }
+    } catch (e) {
+      console.log('Eroare la ștergerea piesei', e);
+      Alert.alert(
+        'Eroare',
+        'Piesa nu a putut fi ștearsă. Datele au rămas neschimbate.'
+      );
+    }
   };
 
   const handleSellPart = async (saleData) => {
