@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -106,8 +107,12 @@ function DetailRow({ label, value }) {
   );
 }
 
-export default function PartDetailsScreen({ part, goBack }) {
+export default function PartDetailsScreen({ part, goBack, onSellPart }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [saleModalVisible, setSaleModalVisible] = useState(false);
+  const [saleQuantity, setSaleQuantity] = useState('1');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   if (!part) {
     return (
@@ -119,7 +124,64 @@ export default function PartDetailsScreen({ part, goBack }) {
       </View>
     );
   }
+  const stockQuantity = Math.max(
+    0,
+    Number.parseInt(part.quantity, 10) || 0
+  );
 
+  const priceText = String(part.price || '0');
+  const priceMatch = priceText.match(/\d+(?:[.,]\d+)?/);
+  const unitPrice = priceMatch
+    ? Number(priceMatch[0].replace(',', '.'))
+    : 0;
+
+  const currency = /RON/i.test(priceText)
+    ? 'RON'
+    : (part.currency || 'EUR');
+
+  const quantityToSell = Number.parseInt(saleQuantity, 10) || 0;
+  const saleTotal = unitPrice * quantityToSell;
+
+  const confirmSale = () => {
+    if (!Number.isInteger(quantityToSell) ||
+        quantityToSell < 1 ||
+        quantityToSell > stockQuantity) {
+      Alert.alert('Cantitate invalidă', 'Introdu o cantitate între 1 și cantitatea disponibilă în stoc.');
+      return;
+    }
+
+    if (!customerName.trim()) {
+      Alert.alert('Date lipsă', 'Introdu numele clientului.');
+      return;
+    }
+
+    if (!customerPhone.trim()) {
+      Alert.alert('Date lipsă', 'Introdu numărul de telefon al clientului.');
+      return;
+    }
+
+    if (typeof onSellPart !== 'function') {
+      Alert.alert('Eroare', 'Funcția de înregistrare a vânzării nu este disponibilă.');
+      return;
+    }
+
+    onSellPart({
+      partId: part.id,
+      partName: part.partName,
+      qrCode: part.qrCode,
+      quantity: quantityToSell,
+      unitPrice,
+      total: saleTotal,
+      currency,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+    });
+
+    setSaleModalVisible(false);
+    setSaleQuantity('1');
+    setCustomerName('');
+    setCustomerPhone('');
+  };
   const mainFields = [
     'partName',
     'carMake',
@@ -293,6 +355,15 @@ export default function PartDetailsScreen({ part, goBack }) {
             ))
           )}
         </View>
+        <TouchableOpacity
+          style={styles.sellButton}
+          onPress={() => setSaleModalVisible(true)}
+          disabled={stockQuantity < 1}
+        >
+          <Text style={styles.sellButtonText}>
+            {stockQuantity > 0 ? '💰 Vinde piesa' : 'Stoc epuizat'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal
@@ -316,6 +387,74 @@ export default function PartDetailsScreen({ part, goBack }) {
               resizeMode="contain"
             />
           ) : null}
+        </View>
+      </Modal>
+      <Modal
+        visible={saleModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSaleModalVisible(false)}
+      >
+        <View style={styles.saleOverlay}>
+          <View style={styles.saleBox}>
+            <Text style={styles.saleTitle}>Înregistrare vânzare</Text>
+
+            <Text style={styles.saleLabel}>
+              Cantitate disponibilă: {stockQuantity}
+            </Text>
+
+            <Text style={styles.saleLabel}>Cantitate vândută</Text>
+            <TextInput
+              style={styles.saleInput}
+              value={saleQuantity}
+              onChangeText={setSaleQuantity}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <Text style={styles.saleLabel}>Nume client</Text>
+            <TextInput
+              style={styles.saleInput}
+              value={customerName}
+              onChangeText={setCustomerName}
+              placeholder="Numele clientului"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <Text style={styles.saleLabel}>Telefon client</Text>
+            <TextInput
+              style={styles.saleInput}
+              value={customerPhone}
+              onChangeText={setCustomerPhone}
+              keyboardType="phone-pad"
+              placeholder="Număr de telefon"
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <View style={styles.totalBox}>
+              <Text style={styles.totalLabel}>Total de încasat</Text>
+              <Text style={styles.totalValue}>
+                {saleTotal.toFixed(2)} {currency}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.confirmSaleButton}
+              onPress={confirmSale}
+            >
+              <Text style={styles.confirmSaleText}>
+                Confirmă vânzarea
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelSaleButton}
+              onPress={() => setSaleModalVisible(false)}
+            >
+              <Text style={styles.cancelSaleText}>Anulează</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </View>
@@ -436,5 +575,90 @@ const styles = StyleSheet.create({
   fullPhoto: {
     width: '100%',
     height: '85%',
+  },
+  sellButton: {
+    backgroundColor: '#16865D',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  sellButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  saleOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  saleBox: {
+    backgroundColor: '#19212E',
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#354255',
+  },
+  saleTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 16,
+  },
+  saleLabel: {
+    color: '#B9C5D6',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  saleInput: {
+    backgroundColor: '#101722',
+    borderWidth: 1,
+    borderColor: '#354255',
+    borderRadius: 8,
+    color: '#FFFFFF',
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  totalBox: {
+    backgroundColor: '#101722',
+    padding: 14,
+    borderRadius: 9,
+    marginVertical: 8,
+  },
+  totalLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  totalValue: {
+    color: '#4ADE80',
+    fontSize: 23,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  confirmSaleButton: {
+    backgroundColor: '#16865D',
+    padding: 14,
+    borderRadius: 9,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  confirmSaleText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  cancelSaleButton: {
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  cancelSaleText: {
+    color: '#FCA5A5',
+    fontWeight: '700',
   },
 });
