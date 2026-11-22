@@ -141,7 +141,18 @@ function getGrilleText(grilles) {
         return '';
       }
 
-      return String(grille.name || '').trim();
+      const name = String(grille.name || '').trim();
+
+      const codes = (Array.isArray(grille.codes) ? grille.codes : [])
+        .map(code => String(code || '').trim())
+        .filter(Boolean)
+        .join(', ');
+
+      if (name && codes) {
+        return `${name}: ${codes}`;
+      }
+
+      return name || codes;
     })
     .filter(Boolean)
     .join('\n');
