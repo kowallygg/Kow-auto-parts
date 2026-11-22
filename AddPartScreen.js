@@ -340,6 +340,8 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
       id: form.qrCode.trim(),
       qrCode: form.qrCode.trim(),
       category,
+      subcategory: selectedSubcategory?.id || '',
+      subcategoryName: selectedSubcategory?.name || '',
       partName: form.partName.trim(),
       location,
       price: form.price
@@ -391,9 +393,26 @@ if (category === 'caroserie' && caroserieOpen) {
         keyboardShouldPersistTaps="handled"
       >
         {selectedSubcategory.id === 'bara_fata' ? (
-          <BaraFataForm
-            value={form.baraFata}
-            onChange={value => update('baraFata', value)}
+  <>
+    <BaraFataForm
+      value={form.baraFata}
+      onChange={value => update('baraFata', value)}
+    />
+
+    <TouchableOpacity
+      style={styles.saveButton}
+      onPress={continueFromBaraFata}
+    >
+      <Text style={styles.saveButtonText}>
+        ✓ Salvează datele și continuă
+      </Text>
+    </TouchableOpacity>
+  </>
+) : (
+  <Text style={{ color: '#FFFFFF' }}>
+    Formularul acestei subcategorii va fi construit ulterior.
+  </Text>
+)}
           />
         ) : (
           <Text style={{ color: '#FFFFFF' }}>
@@ -417,6 +436,13 @@ if (category === 'caroserie' && caroserieOpen) {
   );
 }
   const fields = CATEGORY_FIELDS[category] || [];
+
+  const visibleFields =
+    category === 'caroserie' && selectedSubcategory?.id === 'bara_fata'
+      ? fields.filter(([, key]) =>
+          ['partName', 'position', 'producerCode'].includes(key)
+        )
+      : fields;
 
   return (
     <View style={styles.container}>
@@ -546,7 +572,7 @@ if (category === 'caroserie' && caroserieOpen) {
         {category ? (
           <Section title="3. Datele piesei">
 
-            {fields.map(([label, key]) => (
+           {visibleFields.map(([label, key]) => (
               <Field
                 key={key}
                 label={label}
@@ -729,7 +755,7 @@ if (category === 'caroserie' && caroserieOpen) {
         </Section>
 
         {/* 7. OBSERVAȚII */}
-        <Section title="7. Observații">
+        <Section title="7. Observații generale">
 
           <Field
             label="Observații suplimentare"
