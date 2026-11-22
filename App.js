@@ -3,10 +3,11 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddPartScreen from './AddPartScreen';
 import StockScreen from './StockScreen';
-
+import PartDetailsScreen from './PartDetailsScreen';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'add', 'stock', 'cars', 'sales', 'scan'
   const [stockParts, setStockParts] = useState([]);
+const [selectedPart, setSelectedPart] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -48,9 +49,28 @@ export default function App() {
     return <AddPartScreen goBack={() => setCurrentScreen('home')} onSavePartToStock={handleSavePartToStock} />;
   }
 
-  if (currentScreen === 'stock') {
-    return <StockScreen stockParts={stockParts} goBack={() => setCurrentScreen('home')} onDeletePart={handleDeletePart} />;
-  }
+  if (currentScreen === 'details') {
+  return (
+    <PartDetailsScreen
+      part={selectedPart}
+      goBack={() => setCurrentScreen('stock')}
+    />
+  );
+}
+
+if (currentScreen === 'stock') {
+  return (
+    <StockScreen
+      stockParts={stockParts}
+      goBack={() => setCurrentScreen('home')}
+      onDeletePart={handleDeletePart}
+      onOpenPart={part => {
+        setSelectedPart(part);
+        setCurrentScreen('details');
+      }}
+    />
+  );
+}
 
   return (
     <View style={styles.container}>
