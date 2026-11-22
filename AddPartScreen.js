@@ -413,12 +413,6 @@ if (category === 'caroserie' && caroserieOpen) {
     Formularul acestei subcategorii va fi construit ulterior.
   </Text>
 )}
-          />
-        ) : (
-          <Text style={{ color: '#FFFFFF' }}>
-            Formularul acestei subcategorii va fi construit ulterior.
-          </Text>
-        )}
       </ScrollView>
     </View>
   );
