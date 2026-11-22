@@ -21,6 +21,7 @@ const FIELD_LABELS = {
   year: 'An fabricație',
   oemCode: 'Cod OEM',
   producerCode: 'Cod producător',
+  price: 'Preț',
   transmissionType: 'Tip transmisie',
   transmissionCode: 'Cod cutie',
   position: 'Poziție',
@@ -71,16 +72,19 @@ function formatValue(value) {
   }
 
   if (Array.isArray(value)) {
-    return value.map(item => String(item)).join(', ');
+    return value
+      .map(item => formatValue(item))
+      .filter(Boolean)
+      .join(', ');
   }
 
   if (typeof value === 'object') {
     return Object.entries(value)
       .map(([key, item]) => {
-        if (item === null || item === undefined || item === '') {
-          return null;
-        }
-        return `${BUMPER_LABELS[key] || key}: ${formatValue(item)}`;
+        const formatted = formatValue(item);
+        return formatted
+          ? `${BUMPER_LABELS[key] || key}: ${formatted}`
+          : '';
       })
       .filter(Boolean)
       .join('\n');
@@ -108,7 +112,176 @@ function DetailRow({ label, value }) {
   );
 }
 
-export default function PartDetailsScreen({ part, goBack, onSellPart }) {
+function getSideEquipmentText(items) {
+  if (!items) return '';
+
+  return ['left', 'right']
+    .map(side => {
+      const item = items[side] || {};
+      const code = String(item.code || '').trim();
+
+      if (!item.enabled && !code) return '';
+
+      const label = side === 'left' ? 'Stânga' : 'Dreapta';
+
+      return code ? `${label}: ${code}` : label;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function getGrilleText(grilles) {
+  return (grilles || [])
+    .map(grille => {
+      if (typeof grille === 'string') {
+        return grille.trim();
+      }
+
+      if (!grille || typeof grille !== 'object') {
+        return '';
+      }
+
+      return String(grille.name || '').trim();
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function getExtraFeaturesText(items) {
+  return (items || [])
+    .map(item => {
+      if (typeof item === 'string') {
+        return item.trim();
+      }
+
+      if (!item || typeof item !== 'object') {
+        return '';
+      }
+
+      return [
+        String(item.name || '').trim(),
+        String(item.value || '').trim(),
+      ]
+        .filter(Boolean)
+        .join(': ');
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function BumperDetailRows({ data }) {
+  const bumperType = data.bumperType === 'Alt tip'
+    ? (
+        String(data.customBumperType || '').trim()
+        || 'Alt tip'
+      )
+    : data.bumperType;
+
+  const sensorCodes = (data.sensorCodes || [])
+    .map(code => String(code || '').trim())
+    .filter(Boolean)
+    .join(', ');
+
+  return (
+    <>
+      <DetailRow
+        label="Tip piesă"
+        value={
+          data.type === 'completa'
+            ? 'Bară față completă'
+            : data.type === 'goala'
+              ? 'Bară față goală'
+              : data.type
+        }
+      />
+
+      <DetailRow
+        label="Culoare"
+        value={data.color}
+      />
+
+      <DetailRow
+        label="Tip bară"
+        value={bumperType}
+      />
+
+      {data.sensorsEnabled ? (
+        <>
+          <DetailRow
+            label="Senzori parcare"
+            value={
+              data.sensorCount
+                ? `Da — ${data.sensorCount} buc.`
+                : 'Da'
+            }
+          />
+
+          <DetailRow
+            label="Coduri senzori"
+            value={sensorCodes}
+          />
+        </>
+      ) : null}
+
+      <DetailRow
+        label="Spălătoare faruri"
+        value={getSideEquipmentText(data.washers)}
+      />
+
+      <DetailRow
+        label="Proiectoare ceață"
+        value={getSideEquipmentText(data.fogLights)}
+      />
+
+      <DetailRow
+        label="Grile"
+        value={getGrilleText(data.grilles)}
+      />
+
+      <DetailRow
+        label="Dotări suplimentare"
+        value={getExtraFeaturesText(data.extraFeatures)}
+      />
+
+      <DetailRow
+        label="Observații"
+        value={data.observations}
+      />
+    </>
+  );
+}
+
+function getLocationText(part) {
+  if (part.location) {
+    return part.location;
+  }
+
+  const type = part.locationType || '';
+
+  if (!type) {
+    return '';
+  }
+
+  if (type === 'Depozit' || type === 'Afară') {
+    const details = [
+      part.shelf ? `raft ${part.shelf}` : '',
+      part.column ? `coloana ${part.column}` : '',
+      part.level ? `nivel ${part.level}` : '',
+    ].filter(Boolean);
+
+    return [type, ...details].join(' – ');
+  }
+
+  return [type, part.locationDetails]
+    .filter(Boolean)
+    .join(' – ');
+}
+
+export default function PartDetailsScreen({
+  part,
+  goBack,
+  onSellPart,
+}) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [saleModalVisible, setSaleModalVisible] = useState(false);
   const [saleQuantity, setSaleQuantity] = useState('1');
@@ -118,9 +291,17 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
   if (!part) {
     return (
       <View style={styles.container}>
-        <Text style={styles.emptyText}>Piesa nu a fost găsită.</Text>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Înapoi</Text>
+        <Text style={styles.emptyText}>
+          Piesa nu a fost găsită.
+        </Text>
+
+        <TouchableOpacity
+          onPress={goBack}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Înapoi
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -133,6 +314,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
 
   const priceText = String(part.price || '0');
   const priceMatch = priceText.match(/\d+(?:[.,]\d+)?/);
+
   const unitPrice = priceMatch
     ? Number(priceMatch[0].replace(',', '.'))
     : 0;
@@ -141,7 +323,9 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     ? 'RON'
     : (part.currency || 'EUR');
 
-  const quantityToSell = Number.parseInt(saleQuantity, 10) || 0;
+  const quantityToSell =
+    Number.parseInt(saleQuantity, 10) || 0;
+
   const saleTotal = unitPrice * quantityToSell;
 
   const confirmSale = () => {
@@ -158,12 +342,18 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     }
 
     if (!customerName.trim()) {
-      Alert.alert('Date lipsă', 'Introdu numele clientului.');
+      Alert.alert(
+        'Date lipsă',
+        'Introdu numele clientului.'
+      );
       return;
     }
 
     if (!customerPhone.trim()) {
-      Alert.alert('Date lipsă', 'Introdu numărul de telefon al clientului.');
+      Alert.alert(
+        'Date lipsă',
+        'Introdu numărul de telefon al clientului.'
+      );
       return;
     }
 
@@ -201,7 +391,6 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     'engineCode',
     'year',
     'oemCode',
-    'producerCode',
     'transmissionType',
     'transmissionCode',
     'position',
@@ -213,8 +402,6 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     'offset',
     'pcd',
     'tireSize',
-    'lot',
-    'car',
   ];
 
   const stockFields = [
@@ -226,14 +413,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
     'observations',
   ];
 
-  const locationFields = [
-    'location',
-    'locationType',
-    'shelf',
-    'column',
-    'level',
-    'locationDetails',
-  ];
+  const locationText = getLocationText(part);
 
   const otherFields = [
     'qrCode',
@@ -244,18 +424,27 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Înapoi</Text>
+        <TouchableOpacity
+          onPress={goBack}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Înapoi
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Detalii piesă</Text>
+        <Text style={styles.headerTitle}>
+          Detalii piesă
+        </Text>
 
         <View style={{ width: 64 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datele piesei</Text>
+          <Text style={styles.sectionTitle}>
+            Datele piesei
+          </Text>
 
           {mainFields.map(key => (
             <DetailRow
@@ -267,36 +456,21 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
 
           {part.category === 'caroserie' && part.baraFata ? (
             <>
-              <Text style={styles.subTitle}>Detalii bară față</Text>
+              <Text style={styles.subTitle}>
+                Detalii bară față
+              </Text>
 
-              {Object.entries(part.baraFata).map(([key, value]) => {
-                if (
-                  value === null ||
-                  value === undefined ||
-                  value === ''
-                ) {
-                  return null;
-                }
-
-                const label =
-                  BUMPER_LABELS[key] ||
-                  FIELD_LABELS[key] ||
-                  key;
-
-                return (
-                  <DetailRow
-                    key={key}
-                    label={label}
-                    value={value}
-                  />
-                );
-              })}
+              <BumperDetailRows
+                data={part.baraFata}
+              />
             </>
           ) : null}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Stoc și stare</Text>
+          <Text style={styles.sectionTitle}>
+            Stoc și stare
+          </Text>
 
           <DetailRow
             label="Cantitate în stoc"
@@ -314,20 +488,41 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
             ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Locația piesei</Text>
+        {locationText ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Locația piesei
+            </Text>
 
-          {locationFields.map(key => (
             <DetailRow
-              key={key}
-              label={FIELD_LABELS[key] || key}
-              value={part[key]}
+              label="Locație"
+              value={locationText}
             />
-          ))}
-        </View>
+          </View>
+        ) : null}
+
+        {part.lot || part.car ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Proveniență
+            </Text>
+
+            <DetailRow
+              label="Lot / proveniență"
+              value={part.lot}
+            />
+
+            <DetailRow
+              label="Mașina donatoare"
+              value={part.car}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alte informații</Text>
+          <Text style={styles.sectionTitle}>
+            Alte informații
+          </Text>
 
           {otherFields.map(key => (
             <DetailRow
@@ -359,6 +554,7 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
                   style={styles.detailPhoto}
                   resizeMode="cover"
                 />
+
                 <Text style={styles.photoHint}>
                   Fotografia {index + 1} · Apasă pentru mărire
                 </Text>
@@ -373,7 +569,9 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
           disabled={stockQuantity < 1}
         >
           <Text style={styles.sellButtonText}>
-            {stockQuantity > 0 ? '💰 Vinde piesa' : 'Stoc epuizat'}
+            {stockQuantity > 0
+              ? '💰 Vinde piesa'
+              : 'Stoc epuizat'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -389,7 +587,9 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
             style={styles.closeModal}
             onPress={() => setSelectedPhoto(null)}
           >
-            <Text style={styles.closeModalText}>✕ Închide</Text>
+            <Text style={styles.closeModalText}>
+              ✕ Închide
+            </Text>
           </TouchableOpacity>
 
           {selectedPhoto ? (
@@ -410,13 +610,18 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
       >
         <View style={styles.saleOverlay}>
           <View style={styles.saleBox}>
-            <Text style={styles.saleTitle}>Înregistrare vânzare</Text>
+            <Text style={styles.saleTitle}>
+              Înregistrare vânzare
+            </Text>
 
             <Text style={styles.saleLabel}>
               Cantitate disponibilă: {stockQuantity}
             </Text>
 
-            <Text style={styles.saleLabel}>Cantitate vândută</Text>
+            <Text style={styles.saleLabel}>
+              Cantitate vândută
+            </Text>
+
             <TextInput
               style={styles.saleInput}
               value={saleQuantity}
@@ -426,7 +631,10 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
               placeholderTextColor="#9CA3AF"
             />
 
-            <Text style={styles.saleLabel}>Nume client</Text>
+            <Text style={styles.saleLabel}>
+              Nume client
+            </Text>
+
             <TextInput
               style={styles.saleInput}
               value={customerName}
@@ -435,7 +643,10 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
               placeholderTextColor="#9CA3AF"
             />
 
-            <Text style={styles.saleLabel}>Telefon client</Text>
+            <Text style={styles.saleLabel}>
+              Telefon client
+            </Text>
+
             <TextInput
               style={styles.saleInput}
               value={customerPhone}
@@ -446,7 +657,10 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
             />
 
             <View style={styles.totalBox}>
-              <Text style={styles.totalLabel}>Total de încasat</Text>
+              <Text style={styles.totalLabel}>
+                Total de încasat
+              </Text>
+
               <Text style={styles.totalValue}>
                 {saleTotal.toFixed(2)} {currency}
               </Text>
@@ -465,7 +679,9 @@ export default function PartDetailsScreen({ part, goBack, onSellPart }) {
               style={styles.cancelSaleButton}
               onPress={() => setSaleModalVisible(false)}
             >
-              <Text style={styles.cancelSaleText}>Anulează</Text>
+              <Text style={styles.cancelSaleText}>
+                Anulează
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -479,6 +695,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F1115',
   },
+
   header: {
     minHeight: 60,
     paddingHorizontal: 14,
@@ -488,23 +705,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#293241',
   },
+
   backButton: {
     width: 64,
   },
+
   backText: {
     color: '#60A5FA',
     fontSize: 15,
     fontWeight: '700',
   },
+
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
   },
+
   content: {
     padding: 14,
     paddingBottom: 40,
   },
+
   section: {
     backgroundColor: '#161920',
     borderRadius: 12,
@@ -513,12 +735,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#293241',
   },
+
   sectionTitle: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 12,
   },
+
   subTitle: {
     color: '#60A5FA',
     fontSize: 14,
@@ -526,25 +750,30 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 6,
   },
+
   detailRow: {
     paddingVertical: 9,
     borderBottomWidth: 1,
     borderBottomColor: '#293241',
   },
+
   detailLabel: {
     color: '#9CA3AF',
     fontSize: 12,
     marginBottom: 4,
   },
+
   detailValue: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
   },
+
   photosSection: {
     marginTop: 4,
   },
+
   detailPhoto: {
     width: '100%',
     height: 260,
@@ -552,6 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202733',
     marginTop: 10,
   },
+
   photoHint: {
     color: '#9CA3AF',
     fontSize: 11,
@@ -559,20 +789,24 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 12,
   },
+
   noPhotos: {
     color: '#9CA3AF',
     fontSize: 13,
   },
+
   emptyText: {
     color: '#FFFFFF',
     padding: 20,
   },
+
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.96)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   closeModal: {
     position: 'absolute',
     top: 45,
@@ -580,15 +814,18 @@ const styles = StyleSheet.create({
     zIndex: 2,
     padding: 12,
   },
+
   closeModalText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
+
   fullPhoto: {
     width: '100%',
     height: '85%',
   },
+
   sellButton: {
     backgroundColor: '#16865D',
     padding: 16,
@@ -597,17 +834,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
+
   sellButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
+
   saleOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'center',
     padding: 20,
   },
+
   saleBox: {
     backgroundColor: '#19212E',
     borderRadius: 14,
@@ -615,18 +855,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#354255',
   },
+
   saleTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 16,
   },
+
   saleLabel: {
     color: '#B9C5D6',
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 6,
   },
+
   saleInput: {
     backgroundColor: '#101722',
     borderWidth: 1,
@@ -637,22 +880,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 15,
   },
+
   totalBox: {
     backgroundColor: '#101722',
     padding: 14,
     borderRadius: 9,
     marginVertical: 8,
   },
+
   totalLabel: {
     color: '#9CA3AF',
     fontSize: 12,
   },
+
   totalValue: {
     color: '#4ADE80',
     fontSize: 23,
     fontWeight: '800',
     marginTop: 4,
   },
+
   confirmSaleButton: {
     backgroundColor: '#16865D',
     padding: 14,
@@ -660,16 +907,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+
   confirmSaleText: {
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 15,
   },
+
   cancelSaleButton: {
     padding: 12,
     alignItems: 'center',
     marginTop: 4,
   },
+
   cancelSaleText: {
     color: '#FCA5A5',
     fontWeight: '700',
