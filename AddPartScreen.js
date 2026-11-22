@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import CaroserieExterior from './forms/caroserie/CaroserieExterior';
 import BaraFataForm from './forms/caroserie/BaraFataForm';
+
 const CATEGORIES = [
   { id: 'motor', label: 'Motor și anexe', icon: '⚙️' },
   { id: 'transmisie', label: 'Transmisie', icon: '🔩' },
@@ -34,7 +35,6 @@ const CATEGORY_FIELDS = {
     ['Cod motor', 'engineCode'],
     ['An fabricație', 'year'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   transmisie: [
     ['Denumire piesă', 'partName'],
@@ -46,7 +46,6 @@ const CATEGORY_FIELDS = {
     ['Tip transmisie / cutie', 'transmissionType'],
     ['Cod cutie', 'transmissionCode'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   suspensie: [
     ['Denumire piesă', 'partName'],
@@ -55,7 +54,6 @@ const CATEGORY_FIELDS = {
     ['An fabricație', 'year'],
     ['Poziție', 'position'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   mecanica: [
     ['Denumire piesă', 'partName'],
@@ -65,7 +63,6 @@ const CATEGORY_FIELDS = {
     ['Cod motor', 'engineCode'],
     ['An fabricație', 'year'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   punti: [
     ['Denumire piesă', 'partName'],
@@ -74,7 +71,6 @@ const CATEGORY_FIELDS = {
     ['An fabricație', 'year'],
     ['Punte față / spate', 'axlePosition'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   frane: [
     ['Denumire piesă', 'partName'],
@@ -83,7 +79,6 @@ const CATEGORY_FIELDS = {
     ['An fabricație', 'year'],
     ['Poziție', 'position'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   interior: [
     ['Denumire piesă', 'partName'],
@@ -92,7 +87,6 @@ const CATEGORY_FIELDS = {
     ['An fabricație', 'year'],
     ['Culoare / cod culoare', 'colorCode'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   caroserie: [
     ['Denumire piesă', 'partName'],
@@ -102,7 +96,6 @@ const CATEGORY_FIELDS = {
     ['Culoare / cod culoare', 'colorCode'],
     ['Poziție / parte', 'position'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
   roti: [
     ['Denumire piesă', 'partName'],
@@ -115,9 +108,22 @@ const CATEGORY_FIELDS = {
     ['PCD', 'pcd'],
     ['Dimensiune anvelopă', 'tireSize'],
     ['Cod OEM', 'oemCode'],
-    ['Cod producător', 'producerCode'],
   ],
 };
+
+const BUMPER_POSITIONS = [
+  'stânga',
+  'dreapta',
+  'față',
+  'spate',
+  'stânga față',
+  'stânga spate',
+  'dreapta față',
+  'dreapta spate',
+  'mijloc',
+  'sus',
+  'jos',
+];
 
 const INITIAL_FORM = {
   partName: '',
@@ -144,7 +150,7 @@ const INITIAL_FORM = {
   car: '',
   qrCode: '',
   price: '',
-quantity: '1',
+  quantity: '1',
   currency: 'EUR',
   condition: 'Stare bună',
   verification: 'Neverificat',
@@ -162,8 +168,8 @@ export default function AddPartScreen({
   onSavePartToStock,
 }) {
   const [category, setCategory] = useState('');
-const [caroserieOpen, setCaroserieOpen] = useState(false);
-const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+  const [caroserieOpen, setCaroserieOpen] = useState(false);
+  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [photos, setPhotos] = useState([]);
   const [qrValidated, setQrValidated] = useState(false);
@@ -178,6 +184,7 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
       setQrValidated(false);
     }
   };
+
   const continueFromBaraFata = () => {
     const bumper = form.baraFata;
 
@@ -206,6 +213,7 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
 
     setCaroserieOpen(false);
   };
+
   // SELECTARE FOTOGRAFII DIN GALERIE
   const pickPhotos = async () => {
     try {
@@ -335,12 +343,14 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
       form.locationType === 'Afară'
         ? `${form.locationType} - Raft: ${form.shelf || '-'}, Coloană: ${form.column || '-'}, Nivel: ${form.level || '-'}`
         : `${form.locationType} - ${form.locationDetails || '-'}`;
-const quantity = Number.parseInt(form.quantity, 10);
 
-if (!Number.isInteger(quantity) || quantity < 1) {
-  alert('Introdu o cantitate validă, mai mare decât zero.');
-  return;
-}
+    const quantity = Number.parseInt(form.quantity, 10);
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      alert('Introdu o cantitate validă, mai mare decât zero.');
+      return;
+    }
+
     const newPart = {
       ...form,
       id: form.qrCode.trim(),
@@ -375,73 +385,74 @@ if (!Number.isInteger(quantity) || quantity < 1) {
 
     goBack();
   };
-if (category === 'caroserie' && caroserieOpen) {
-  if (selectedSubcategory) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => setSelectedSubcategory(null)}
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>‹ Înapoi</Text>
-        </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>
-          {selectedSubcategory.name}
-        </Text>
+  if (category === 'caroserie' && caroserieOpen) {
+    if (selectedSubcategory) {
+      return (
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => setSelectedSubcategory(null)}
+              style={styles.backButton}
+            >
+              <Text style={styles.backText}>‹ Înapoi</Text>
+            </TouchableOpacity>
 
-        <View style={{ width: 64 }} />
-      </View>
+            <Text style={styles.headerTitle}>
+              {selectedSubcategory.name}
+            </Text>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        {selectedSubcategory.id === 'bara_fata' ? (
-  <>
-    <BaraFataForm
-      value={form.baraFata}
-      onChange={value => update('baraFata', value)}
-    />
+            <View style={{ width: 64 }} />
+          </View>
 
-    <TouchableOpacity
-      style={styles.saveButton}
-      onPress={continueFromBaraFata}
-    >
-      <Text style={styles.saveButtonText}>
-        ✓ Salvează datele și continuă
-      </Text>
-    </TouchableOpacity>
-  </>
-) : (
-  <Text style={{ color: '#FFFFFF' }}>
-    Formularul acestei subcategorii va fi construit ulterior.
-  </Text>
-)}
-      </ScrollView>
-    </View>
-  );
-}
-  return (
-    <CaroserieExterior
-      onSelectSubcategory={item =>
-        setSelectedSubcategory(item)
-      }
-      goBack={() => {
-        setCaroserieOpen(false);
-        setCategory('');
-      }}
-    />
-  );
-}
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {selectedSubcategory.id === 'bara_fata' ? (
+              <>
+                <BaraFataForm
+                  value={form.baraFata}
+                  onChange={value => update('baraFata', value)}
+                />
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={continueFromBaraFata}
+                >
+                  <Text style={styles.saveButtonText}>
+                    ✓ Salvează datele și continuă
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={{ color: '#FFFFFF' }}>
+                Formularul acestei subcategorii va fi construit ulterior.
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      );
+    }
+
+    return (
+      <CaroserieExterior
+        onSelectSubcategory={item =>
+          setSelectedSubcategory(item)
+        }
+        goBack={() => {
+          setCaroserieOpen(false);
+          setCategory('');
+        }}
+      />
+    );
+  }
+
   const fields = CATEGORY_FIELDS[category] || [];
 
   const visibleFields =
     category === 'caroserie' && selectedSubcategory?.id === 'bara_fata'
-      ? fields.filter(([, key]) =>
-          ['partName', 'position', 'producerCode'].includes(key)
-        )
+      ? fields.filter(([, key]) => key === 'partName')
       : fields;
 
   return (
@@ -467,7 +478,6 @@ if (category === 'caroserie' && caroserieOpen) {
       >
         {/* 1. FOTOGRAFII ȘI QR */}
         <Section title="1. Fotografii și cod QR">
-
           <View style={styles.buttonRow}>
             <ActionButton
               label="＋ Adaugă poze"
@@ -533,9 +543,16 @@ if (category === 'caroserie' && caroserieOpen) {
           </Text>
         </Section>
 
-        {/* 2. CATEGORII */}
-        <Section title="2. Categoria principală">
+        {/* 2. PROVENIENȚĂ */}
+        <Section title="2. Proveniență">
+          <Text style={styles.helper}>
+            Selectarea lotului și a mașinii donatoare va fi disponibilă
+            după configurarea registrului de proveniență.
+          </Text>
+        </Section>
 
+        {/* 3. CATEGORII */}
+        <Section title="3. Categoria principală">
           <View style={styles.categoryGrid}>
             {CATEGORIES.map(item => (
               <TouchableOpacity
@@ -546,15 +563,15 @@ if (category === 'caroserie' && caroserieOpen) {
                     styles.categorySelected,
                 ]}
                 onPress={() => {
-  setCategory(item.id);
+                  setCategory(item.id);
 
-  if (item.id === 'caroserie') {
-    setCaroserieOpen(true);
-    setSelectedSubcategory(null);
-  } else {
-    setCaroserieOpen(false);
-  }
-}}
+                  if (item.id === 'caroserie') {
+                    setCaroserieOpen(true);
+                    setSelectedSubcategory(null);
+                  } else {
+                    setCaroserieOpen(false);
+                  }
+                }}
               >
                 <Text style={styles.categoryIcon}>
                   {item.icon}
@@ -568,11 +585,10 @@ if (category === 'caroserie' && caroserieOpen) {
           </View>
         </Section>
 
-        {/* 3. DATELE SPECIFICE CATEGORIEI */}
+        {/* 4. DATELE SPECIFICE CATEGORIEI */}
         {category ? (
-          <Section title="3. Datele piesei">
-
-           {visibleFields.map(([label, key]) => (
+          <Section title="4. Datele piesei">
+            {visibleFields.map(([label, key]) => (
               <Field
                 key={key}
                 label={label}
@@ -588,28 +604,62 @@ if (category === 'caroserie' && caroserieOpen) {
               />
             ))}
 
-            <Field
-              label="Lot / proveniență"
-              value={form.lot}
-              onChangeText={value =>
-                update('lot', value)
-              }
-            />
+            {category === 'caroserie' &&
+            selectedSubcategory?.id === 'bara_fata' ? (
+              <View style={styles.positionSection}>
+                <Text style={styles.label}>Poziție / parte</Text>
 
-            <Field
-              label="Mașina donatoare"
-              value={form.car}
-              onChangeText={value =>
-                update('car', value)
-              }
-            />
+                <View style={styles.positionGrid}>
+                  {BUMPER_POSITIONS.map(item => {
+                    const selected = Array.isArray(form.position)
+                      ? form.position.includes(item)
+                      : false;
 
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        style={styles.positionOption}
+                        onPress={() => {
+                          const current = Array.isArray(form.position)
+                            ? form.position
+                            : [];
+
+                          const next = selected
+                            ? current.filter(value => value !== item)
+                            : [...current, item];
+
+                          update('position', next);
+                        }}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            selected && styles.checkboxSelected,
+                          ]}
+                        >
+                          {selected ? (
+                            <Text style={styles.checkmark}>✓</Text>
+                          ) : null}
+                        </View>
+
+                        <Text style={styles.positionText}>
+                          {item}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.helper}>
+                  Poți selecta mai multe poziții.
+                </Text>
+              </View>
+            ) : null}
           </Section>
         ) : null}
 
-        {/* 4. LOCAȚIE */}
-        <Section title="4. Locația piesei">
-
+        {/* 5. LOCAȚIE */}
+        <Section title="5. Locația piesei">
           <View style={styles.choiceRow}>
             {[
               'Depozit',
@@ -674,12 +724,10 @@ if (category === 'caroserie' && caroserieOpen) {
               placeholder="Descrie locația..."
             />
           ) : null}
-
         </Section>
 
-        {/* 5. STARE ȘI VERIFICARE */}
-        <Section title="5. Stare și verificare">
-
+        {/* 6. STARE ȘI VERIFICARE */}
+        <Section title="6. Stare și verificare">
           <Text style={styles.label}>
             Starea piesei
           </Text>
@@ -723,18 +771,17 @@ if (category === 'caroserie' && caroserieOpen) {
               />
             ))}
           </View>
-
         </Section>
 
-        {/* 6. PREȚ */}
-        <Section title="6. Preț">
-<Field
-  label="Cantitate în stoc"
-  value={form.quantity}
-  onChangeText={value => update('quantity', value)}
-  keyboardType="number-pad"
-  placeholder="1"
-/>
+        {/* 7. PREȚ */}
+        <Section title="7. Preț">
+          <Field
+            label="Cantitate în stoc"
+            value={form.quantity}
+            onChangeText={value => update('quantity', value)}
+            keyboardType="number-pad"
+            placeholder="1"
+          />
 
           <Field
             label="Preț de vânzare"
@@ -758,12 +805,10 @@ if (category === 'caroserie' && caroserieOpen) {
               />
             ))}
           </View>
-
         </Section>
 
-        {/* 7. OBSERVAȚII */}
-        <Section title="7. Observații generale">
-
+        {/* 8. OBSERVAȚII */}
+        <Section title="8. Observații generale">
           <Field
             label="Observații suplimentare"
             value={form.observations}
@@ -773,7 +818,6 @@ if (category === 'caroserie' && caroserieOpen) {
             multiline
             placeholder="Alte detalii despre piesă..."
           />
-
         </Section>
 
         {/* SALVARE */}
@@ -785,7 +829,6 @@ if (category === 'caroserie' && caroserieOpen) {
             ✓ Salvează piesa în stoc
           </Text>
         </TouchableOpacity>
-
       </ScrollView>
     </View>
   );
@@ -1073,6 +1116,59 @@ const styles = StyleSheet.create({
 
   choiceTextSelected: {
     color: '#8EF0BD',
+  },
+
+  positionSection: {
+    marginTop: 8,
+  },
+
+  positionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  positionOption: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#101722',
+    borderWidth: 1,
+    borderColor: '#354255',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 9,
+    marginBottom: 7,
+  },
+
+  positionText: {
+    color: '#DCE5F2',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    marginLeft: 8,
+  },
+
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#64748B',
+    backgroundColor: '#101722',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkboxSelected: {
+    backgroundColor: '#16865D',
+    borderColor: '#36B37E',
+  },
+
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
 
   threeFields: {
