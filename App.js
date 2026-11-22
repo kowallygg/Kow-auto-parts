@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddPartScreen from './AddPartScreen';
 import StockScreen from './StockScreen';
@@ -7,6 +7,7 @@ import PartDetailsScreen from './PartDetailsScreen';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'add', 'stock', 'cars', 'sales', 'scan'
   const [stockParts, setStockParts] = useState([]);
+const [sales, setSales] = useState([]);
 const [selectedPart, setSelectedPart] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -15,15 +16,21 @@ const [selectedPart, setSelectedPart] = useState(null);
   }, []);
 
   const loadStock = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('@kow_stock_parts');
-      if (saved) {
-        setStockParts(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.log('Eroare la citirea stocului', e);
+  try {
+    const savedStock = await AsyncStorage.getItem('@kow_stock_parts');
+    const savedSales = await AsyncStorage.getItem('@kow_sales');
+
+    if (savedStock) {
+      setStockParts(JSON.parse(savedStock));
     }
-  };
+
+    if (savedSales) {
+      setSales(JSON.parse(savedSales));
+    }
+  } catch (e) {
+    console.log('Eroare la citirea datelor', e);
+  }
+};
 
   const saveStockToStorage = async (newList) => {
     try {
@@ -44,6 +51,56 @@ const [selectedPart, setSelectedPart] = useState(null);
     setStockParts(updated);
     saveStockToStorage(updated);
   };
+const handleSellPart = async (saleData) => {
+  try {
+    const currentPart = stockParts.find(
+      p => String(p.id) === String(saleData.partId)
+    );
+
+    if (!currentPart) {
+      Alert.alert('Eroare', 'Piesa nu mai există în stoc.');
+      return;
+    }
+
+    const currentQuantity = Number(currentPart.quantity) || 0;
+
+    if (saleData.quantity < 1 || saleData.quantity > currentQuantity) {
+      Alert.alert('Stoc insuficient', 'Cantitatea disponibilă s-a modificat.');
+      return;
+    }
+
+    const updatedPart = {
+      ...currentPart,
+      quantity: currentQuantity - saleData.quantity,
+    };
+
+    const updatedStock = stockParts.map(p =>
+      String(p.id) === String(saleData.partId) ? updatedPart : p
+    );
+
+    const newSale = {
+      ...saleData,
+      id: String(Date.now()),
+      date: new Date().toISOString(),
+    };
+
+    const updatedSales = [newSale, ...sales];
+
+    await AsyncStorage.multiSet([
+      ['@kow_stock_parts', JSON.stringify(updatedStock)],
+      ['@kow_sales', JSON.stringify(updatedSales)],
+    ]);
+
+    setStockParts(updatedStock);
+    setSales(updatedSales);
+    setSelectedPart(updatedPart);
+
+    Alert.alert('Vânzare înregistrată', 'Stocul a fost actualizat cu succes.');
+  } catch (e) {
+    console.log('Eroare la înregistrarea vânzării', e);
+    Alert.alert('Eroare', 'Vânzarea nu a putut fi salvată.');
+  }
+};
 
   if (currentScreen === 'add') {
     return <AddPartScreen goBack={() => setCurrentScreen('home')} onSavePartToStock={handleSavePartToStock} />;
@@ -51,10 +108,11 @@ const [selectedPart, setSelectedPart] = useState(null);
 
   if (currentScreen === 'details') {
   return (
-    <PartDetailsScreen
-      part={selectedPart}
-      goBack={() => setCurrentScreen('stock')}
-    />
+   <PartDetailsScreen
+  part={selectedPart}
+  goBack={() => setCurrentScreen('stock')}
+  onSellPart={handleSellPart}
+/>
   );
 }
 
