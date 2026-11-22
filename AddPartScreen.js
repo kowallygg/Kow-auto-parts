@@ -177,7 +177,34 @@ const [selectedSubcategory, setSelectedSubcategory] = useState(null);
       setQrValidated(false);
     }
   };
+  const continueFromBaraFata = () => {
+    const bumper = form.baraFata;
 
+    if (!bumper) {
+      Alert.alert(
+        'Date lipsă',
+        'Completează datele barei față.'
+      );
+      return;
+    }
+
+    const oemCodes = (bumper.oemCodes || [])
+      .map(code => String(code).trim())
+      .filter(Boolean);
+
+    setForm(current => ({
+      ...current,
+      partName: current.partName.trim()
+        || `Bară față ${bumper.carMake || ''} ${bumper.carModel || ''}`.trim(),
+      carMake: bumper.carMake || '',
+      carModel: bumper.carModel || '',
+      year: bumper.year || '',
+      colorCode: bumper.colorCode || '',
+      oemCode: oemCodes.join(', '),
+    }));
+
+    setCaroserieOpen(false);
+  };
   // SELECTARE FOTOGRAFII DIN GALERIE
   const pickPhotos = async () => {
     try {
