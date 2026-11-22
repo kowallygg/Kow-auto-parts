@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   StyleSheet,
   Text,
   TextInput,
@@ -22,24 +23,35 @@ export default function App() {
   const [selectedPart, setSelectedPart] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
     loadStock();
   }, []);
 
   const loadStock = async () => {
+    setIsLoading(true);
+    setLoadError(false);
+
     try {
       const savedStock = await AsyncStorage.getItem('@kow_stock_parts');
       const savedSales = await AsyncStorage.getItem('@kow_sales');
 
-      if (savedStock) {
-        setStockParts(JSON.parse(savedStock));
+      const parsedStock = savedStock ? JSON.parse(savedStock) : [];
+      const parsedSales = savedSales ? JSON.parse(savedSales) : [];
+
+      if (!Array.isArray(parsedStock) || !Array.isArray(parsedSales)) {
+        throw new Error('Datele salvate nu au formatul corect.');
       }
 
-      if (savedSales) {
-        setSales(JSON.parse(savedSales));
-      }
+      setStockParts(parsedStock);
+      setSales(parsedSales);
     } catch (e) {
       console.log('Eroare la citirea datelor', e);
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -131,6 +143,38 @@ export default function App() {
       );
     }
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DC2626" />
+        <Text style={styles.loadingText}>
+          Se încarcă stocul și datele...
+        </Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorTitle}>
+          Nu s-au putut încărca datele
+        </Text>
+        <Text style={styles.errorText}>
+          Stocul nu a fost deschis pentru a evita modificarea accidentală a datelor.
+        </Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={loadStock}
+        >
+          <Text style={styles.retryButtonText}>
+            Încearcă din nou
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (currentScreen === 'add') {
     return (
@@ -258,6 +302,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F1115',
     padding: 16,
     paddingTop: 50,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0F1115',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  errorTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 22,
+  },
+  retryButton: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 13,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   headerBox: {
     alignItems: 'center',
