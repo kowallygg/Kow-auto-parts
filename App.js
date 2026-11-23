@@ -12,14 +12,37 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import AddPartScreen from './AddPartScreen';
+import AddCarScreen from './AddCarScreen';
 import StockScreen from './StockScreen';
 import PartDetailsScreen from './PartDetailsScreen';
 import SalesScreen from './SalesScreen';
+
+const STORAGE_KEYS = {
+  stock: '@kow_stock_parts',
+  sales: '@kow_sales',
+  lots: '@kow_lots',
+  donorCars: '@kow_donor_cars',
+  expenses: '@kow_expenses',
+};
+
+const readArray = async key => {
+  const saved = await AsyncStorage.getItem(key);
+  const parsed = saved ? JSON.parse(saved) : [];
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Date invalide pentru ${key}`);
+  }
+
+  return parsed;
+};
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [stockParts, setStockParts] = useState([]);
   const [sales, setSales] = useState([]);
+  const [lots, setLots] = useState([]);
+  const [donorCars, setDonorCars] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [selectedPart, setSelectedPart] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -35,18 +58,25 @@ export default function App() {
     setLoadError(false);
 
     try {
-      const savedStock = await AsyncStorage.getItem('@kow_stock_parts');
-      const savedSales = await AsyncStorage.getItem('@kow_sales');
-
-      const parsedStock = savedStock ? JSON.parse(savedStock) : [];
-      const parsedSales = savedSales ? JSON.parse(savedSales) : [];
-
-      if (!Array.isArray(parsedStock) || !Array.isArray(parsedSales)) {
-        throw new Error('Datele salvate nu au formatul corect.');
-      }
+      const [
+        parsedStock,
+        parsedSales,
+        parsedLots,
+        parsedDonorCars,
+        parsedExpenses,
+      ] = await Promise.all([
+        readArray(STORAGE_KEYS.stock),
+        readArray(STORAGE_KEYS.sales),
+        readArray(STORAGE_KEYS.lots),
+        readArray(STORAGE_KEYS.donorCars),
+        readArray(STORAGE_KEYS.expenses),
+      ]);
 
       setStockParts(parsedStock);
       setSales(parsedSales);
+      setLots(parsedLots);
+      setDonorCars(parsedDonorCars);
+      setExpenses(parsedExpenses);
     } catch (e) {
       console.log('Eroare la citirea datelor', e);
       setLoadError(true);
@@ -55,32 +85,33 @@ export default function App() {
     }
   };
 
-  const saveStockToStorage = async (newList) => {
+  const saveArray = async (key, value) => {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  };
+
+  const saveStockToStorage = async newList => {
     try {
-      await AsyncStorage.setItem(
-        '@kow_stock_parts',
-        JSON.stringify(newList)
-      );
+      await saveArray(STORAGE_KEYS.stock, newList);
     } catch (e) {
       console.log('Eroare la salvarea stocului', e);
       throw e;
     }
   };
 
-  const handleSavePartToStock = async (newPart) => {
+  const handleSavePartToStock = async newPart => {
     const updated = [newPart, ...stockParts];
 
     await saveStockToStorage(updated);
-
     setStockParts(updated);
   };
 
-  const handleDeletePart = async (id) => {
+  const handleDeletePart = async id => {
     try {
-      const updated = stockParts.filter(p => p.id !== id);
+      const updated = stockParts.filter(
+        part => String(part.id) !== String(id)
+      );
 
       await saveStockToStorage(updated);
-
       setStockParts(updated);
 
       if (
@@ -99,10 +130,121 @@ export default function App() {
     }
   };
 
-  const handleSellPart = async (saleData) => {
+  // LOTURI
+
+  const handleSaveLot = async newLot => {
+    const updated = [newLot, ...lots];
+
+    await saveArray(STORAGE_KEYS.lots, updated);
+    setLots(updated);
+  };
+
+  const handleDeleteLot = async id => {
+    const hasCars = donorCars.some(
+      car => String(car.lotId) === String(id)
+    );
+
+    const hasParts = stockParts.some(part => {
+      if (String(part.lotId) === String(id)) return true;
+
+      const car = donorCars.find(
+        item => String(item.id) === String(part.donorCarId)
+      );
+
+      return car && String(car.lotId) === String(id);
+    });
+
+    const hasSales = sales.some(
+      sale => String(sale.lotId) === String(id)
+    );
+
+    if (hasCars || hasParts || hasSales) {
+      Alert.alert(
+        'Lot utilizat',
+        'Lotul nu poate fi șters deoarece are mașini, piese sau vânzări asociate.'
+      );
+      return;
+    }
+
+    try {
+      const updated = lots.filter(
+        lot => String(lot.id) !== String(id)
+      );
+
+      await saveArray(STORAGE_KEYS.lots, updated);
+      setLots(updated);
+    } catch (e) {
+      Alert.alert('Eroare', 'Lotul nu a putut fi șters.');
+    }
+  };
+
+  // MAȘINI DONATOARE
+
+  const handleSaveDonorCar = async newCar => {
+    const updated = [newCar, ...donorCars];
+
+    await saveArray(STORAGE_KEYS.donorCars, updated);
+    setDonorCars(updated);
+  };
+
+  const handleDeleteDonorCar = async id => {
+    const hasParts = stockParts.some(
+      part => String(part.donorCarId) === String(id)
+    );
+
+    const hasSales = sales.some(
+      sale => String(sale.donorCarId) === String(id)
+    );
+
+    if (hasParts || hasSales) {
+      Alert.alert(
+        'Mașină utilizată',
+        'Mașina nu poate fi ștearsă deoarece are piese sau vânzări asociate.'
+      );
+      return;
+    }
+
+    try {
+      const updated = donorCars.filter(
+        car => String(car.id) !== String(id)
+      );
+
+      await saveArray(STORAGE_KEYS.donorCars, updated);
+      setDonorCars(updated);
+    } catch (e) {
+      Alert.alert('Eroare', 'Mașina nu a putut fi ștearsă.');
+    }
+  };
+
+  // CHELTUIELI
+
+  const handleSaveExpense = async newExpense => {
+    const updated = [newExpense, ...expenses];
+
+    await saveArray(STORAGE_KEYS.expenses, updated);
+    setExpenses(updated);
+  };
+
+  const handleDeleteExpense = async id => {
+    try {
+      const updated = expenses.filter(
+        expense => String(expense.id) !== String(id)
+      );
+
+      await saveArray(STORAGE_KEYS.expenses, updated);
+      setExpenses(updated);
+    } catch (e) {
+      Alert.alert('Eroare', 'Cheltuiala nu a putut fi ștearsă.');
+    }
+  };
+
+  // VÂNZARE PIESE
+  // Logica verificată pentru cantitate, preț, client și istoric este păstrată.
+
+  const handleSellPart = async saleData => {
     try {
       const currentPart = stockParts.find(
-        p => String(p.id) === String(saleData.partId)
+        part => String(part.id) === String(saleData.partId)
       );
 
       if (!currentPart) {
@@ -129,14 +271,16 @@ export default function App() {
         quantity: currentQuantity - saleData.quantity,
       };
 
-      const updatedStock = stockParts.map(p =>
-        String(p.id) === String(saleData.partId)
+      const updatedStock = stockParts.map(part =>
+        String(part.id) === String(saleData.partId)
           ? updatedPart
-          : p
+          : part
       );
 
       const newSale = {
         ...saleData,
+        lotId: currentPart.lotId || null,
+        donorCarId: currentPart.donorCarId || null,
         id: String(Date.now()),
         date: new Date().toISOString(),
       };
@@ -144,8 +288,14 @@ export default function App() {
       const updatedSales = [newSale, ...sales];
 
       await AsyncStorage.multiSet([
-        ['@kow_stock_parts', JSON.stringify(updatedStock)],
-        ['@kow_sales', JSON.stringify(updatedSales)],
+        [
+          STORAGE_KEYS.stock,
+          JSON.stringify(updatedStock),
+        ],
+        [
+          STORAGE_KEYS.sales,
+          JSON.stringify(updatedSales),
+        ],
       ]);
 
       setStockParts(updatedStock);
@@ -202,6 +352,8 @@ export default function App() {
       <AddPartScreen
         goBack={() => setCurrentScreen('home')}
         onSavePartToStock={handleSavePartToStock}
+        lots={lots}
+        donorCars={donorCars}
       />
     );
   }
@@ -212,6 +364,8 @@ export default function App() {
         part={selectedPart}
         goBack={() => setCurrentScreen('stock')}
         onSellPart={handleSellPart}
+        lots={lots}
+        donorCars={donorCars}
       />
     );
   }
@@ -234,7 +388,28 @@ export default function App() {
     return (
       <SalesScreen
         sales={sales}
+        lots={lots}
+        donorCars={donorCars}
+        expenses={expenses}
+        stockParts={stockParts}
         goBack={() => setCurrentScreen('home')}
+      />
+    );
+  }
+
+  if (currentScreen === 'cars') {
+    return (
+      <AddCarScreen
+        goBack={() => setCurrentScreen('home')}
+        lots={lots}
+        donorCars={donorCars}
+        expenses={expenses}
+        onSaveLot={handleSaveLot}
+        onSaveDonorCar={handleSaveDonorCar}
+        onSaveExpense={handleSaveExpense}
+        onDeleteExpense={handleDeleteExpense}
+        onDeleteLot={handleDeleteLot}
+        onDeleteDonorCar={handleDeleteDonorCar}
       />
     );
   }
@@ -263,7 +438,9 @@ export default function App() {
         onPress={() => setCurrentScreen('cars')}
       >
         <Text style={styles.navButtonIcon}>🚗</Text>
-        <Text style={styles.navButtonText}>Mașinile mele</Text>
+        <Text style={styles.navButtonText}>
+          Proveniență: loturi și mașini
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -271,7 +448,9 @@ export default function App() {
         onPress={() => setCurrentScreen('sales')}
       >
         <Text style={styles.navButtonIcon}>💰</Text>
-        <Text style={styles.navButtonText}>Vânzări ({sales.length})</Text>
+        <Text style={styles.navButtonText}>
+          Vânzări ({sales.length})
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
