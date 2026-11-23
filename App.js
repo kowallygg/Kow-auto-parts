@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
@@ -16,6 +15,7 @@ import AddCarScreen from './AddCarScreen';
 import StockScreen from './StockScreen';
 import PartDetailsScreen from './PartDetailsScreen';
 import SalesScreen from './SalesScreen';
+import QrScannerScreen from './QrScannerScreen';
 
 const STORAGE_KEYS = {
   stock: '@kow_stock_parts',
@@ -239,7 +239,6 @@ export default function App() {
   };
 
   // VÂNZARE PIESE
-  // Logica verificată pentru cantitate, preț, client și istoric este păstrată.
 
   const handleSellPart = async saleData => {
     try {
@@ -315,6 +314,41 @@ export default function App() {
     }
   };
 
+  // SCANARE QR DIN PAGINA PRINCIPALĂ
+
+  const handleMainQrScanned = code => {
+    const scannedCode = String(code || '').trim().toUpperCase();
+
+    if (!scannedCode) {
+      Alert.alert('Cod invalid', 'Codul QR nu conține date.');
+      setCurrentScreen('home');
+      return;
+    }
+
+    const foundPart = stockParts.find(part => {
+      const partQrCode = String(part.qrCode || '').trim().toUpperCase();
+      const partId = String(part.id || '').trim().toUpperCase();
+
+      return (
+        partQrCode === scannedCode ||
+        partId === scannedCode
+      );
+    });
+
+    if (!foundPart) {
+      Alert.alert(
+        'Piesa nu a fost găsită',
+        `Nu există nicio piesă în stoc cu acest cod QR:\n${scannedCode}`
+      );
+      setCurrentScreen('home');
+      return;
+    }
+
+    setSelectedPart(foundPart);
+    setCurrentScreen('details');
+  };
+
+  // PARTEA 2 CONTINUĂ AICI
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -347,6 +381,19 @@ export default function App() {
     );
   }
 
+  // ECRAN SCANARE QR
+
+  if (currentScreen === 'scan') {
+    return (
+      <QrScannerScreen
+        onClose={() => setCurrentScreen('home')}
+        onCodeScanned={handleMainQrScanned}
+      />
+    );
+  }
+
+  // ADAUGARE PIESE
+
   if (currentScreen === 'add') {
     return (
       <AddPartScreen
@@ -354,9 +401,12 @@ export default function App() {
         onSavePartToStock={handleSavePartToStock}
         lots={lots}
         donorCars={donorCars}
+        stockParts={stockParts}
       />
     );
   }
+
+  // DETALII PIESĂ
 
   if (currentScreen === 'details') {
     return (
@@ -369,6 +419,8 @@ export default function App() {
       />
     );
   }
+
+  // STOC
 
   if (currentScreen === 'stock') {
     return (
@@ -384,6 +436,8 @@ export default function App() {
     );
   }
 
+  // VÂNZĂRI
+
   if (currentScreen === 'sales') {
     return (
       <SalesScreen
@@ -396,6 +450,8 @@ export default function App() {
       />
     );
   }
+
+  // LOTURI ȘI MAȘINI DONATOARE
 
   if (currentScreen === 'cars') {
     return (
@@ -413,6 +469,8 @@ export default function App() {
       />
     );
   }
+
+  // PAGINA PRINCIPALĂ
 
   return (
     <View style={styles.container}>
