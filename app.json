@@ -21,6 +21,13 @@
           "cameraPermission": "Aplicația are nevoie de acces la cameră pentru a fotografia piesele."
         }
       ]
+      [
+  "expo-camera",
+  {
+    "cameraPermission": "Aplicația are nevoie de acces la cameră pentru scanarea codurilor QR.",
+    "barcodeScannerEnabled": true
+  }
+]
     ],
     "extra": {
       "eas": {
