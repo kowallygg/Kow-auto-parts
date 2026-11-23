@@ -1,8 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Camera } from 'expo-camera';
+import QrScannerScreen from './QrScannerScreen';
 import CaroserieExterior from './forms/caroserie/CaroserieExterior';
 import BaraFataForm from './forms/caroserie/BaraFataForm';
 
@@ -170,6 +172,7 @@ export default function AddPartScreen({
   onSavePartToStock,
   lots = [],
   donorCars = [],
+  stockParts = [],
 }) {
   const [category, setCategory] = useState('');
   const [caroserieOpen, setCaroserieOpen] = useState(false);
@@ -177,6 +180,7 @@ export default function AddPartScreen({
   const [form, setForm] = useState(INITIAL_FORM);
   const [photos, setPhotos] = useState([]);
   const [qrValidated, setQrValidated] = useState(false);
+  const [qrScannerVisible, setQrScannerVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [provenanceMode, setProvenanceMode] = useState('none');
   const [selectedLotId, setSelectedLotId] = useState(null);
@@ -191,6 +195,92 @@ export default function AddPartScreen({
 
     if (key === 'qrCode') {
       setQrValidated(false);
+    }
+  };
+
+  const acceptQrCode = rawCode => {
+    const code = String(rawCode || '').trim();
+
+    if (!code) {
+      Alert.alert('Cod QR invalid', 'Nu am putut citi codul QR.');
+      return false;
+    }
+
+    const normalizedCode = code.toUpperCase();
+
+    const duplicate = stockParts.find(part => {
+      const existingCode = String(
+        part.qrCode || part.id || ''
+      ).trim().toUpperCase();
+
+      return existingCode === normalizedCode;
+    });
+
+    if (duplicate) {
+      Alert.alert(
+        'Cod QR deja folosit',
+        `Codul ${code} aparține deja piesei „${duplicate.partName || 'fără denumire'}”.`
+      );
+      setQrValidated(false);
+      return false;
+    }
+
+    setForm(current => ({
+      ...current,
+      qrCode: code,
+    }));
+
+    setQrValidated(true);
+    return true;
+  };
+
+  const validateQr = () => {
+    acceptQrCode(form.qrCode);
+  };
+
+  const readQrFromGallery = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permisiune necesară',
+          'Permite accesul la fotografii.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const imageUri = result.assets[0].uri;
+
+      const codes = await Camera.scanFromURLAsync(
+        imageUri,
+        ['qr']
+      );
+
+      if (!codes || codes.length === 0) {
+        Alert.alert(
+          'Cod QR negăsit',
+          'Fotografia selectată nu conține un cod QR care poate fi citit. Încearcă o fotografie mai clară.'
+        );
+        return;
+      }
+
+      acceptQrCode(codes[0].data);
+    } catch (error) {
+      console.log('Eroare la citirea QR din fotografie:', error);
+      Alert.alert(
+        'Eroare',
+        'Nu am putut citi codul QR din fotografie.'
+      );
     }
   };
 
@@ -326,20 +416,6 @@ export default function AddPartScreen({
     }));
   };
 
-  const validateQr = () => {
-    const code = form.qrCode.trim();
-
-    if (!code) {
-      Alert.alert(
-        'Cod QR lipsă',
-        'Introdu codul de pe eticheta piesei.'
-      );
-      return;
-    }
-
-    setQrValidated(true);
-  };
-
   const savePart = async () => {
     if (savingRef.current) return;
 
@@ -358,6 +434,25 @@ export default function AddPartScreen({
         'Cod QR',
         'Introdu și confirmă codul QR înainte de salvare.'
       );
+      return;
+    }
+
+    const normalizedQr = form.qrCode.trim().toUpperCase();
+
+    const qrAlreadyUsed = stockParts.some(part => {
+      const existingCode = String(
+        part.qrCode || part.id || ''
+      ).trim().toUpperCase();
+
+      return existingCode === normalizedQr;
+    });
+
+    if (qrAlreadyUsed) {
+      Alert.alert(
+        'Cod QR duplicat',
+        'Acest cod QR există deja în stoc. Folosește un cod diferit.'
+      );
+      setQrValidated(false);
       return;
     }
 
@@ -468,8 +563,7 @@ export default function AddPartScreen({
       );
     }
   };
-
-  if (category === 'caroserie' && caroserieOpen) {
+    if (category === 'caroserie' && caroserieOpen) {
     if (selectedSubcategory) {
       return (
         <View style={styles.container}>
@@ -598,6 +692,18 @@ export default function AddPartScreen({
             autoCapitalize="characters"
           />
 
+          <View style={styles.buttonRow}>
+            <ActionButton
+              label="📷 Scanează cu camera"
+              onPress={() => setQrScannerVisible(true)}
+            />
+
+            <ActionButton
+              label="🖼️ Citește din galerie"
+              onPress={readQrFromGallery}
+            />
+          </View>
+
           <ActionButton
             label="✓ Confirmă codul QR"
             onPress={validateQr}
@@ -608,11 +714,6 @@ export default function AddPartScreen({
               ✓ Cod confirmat: {form.qrCode}
             </Text>
           ) : null}
-
-          <Text style={styles.helper}>
-            Scanarea automată cu camera și citirea codului dintr-o fotografie
-            vor fi implementate ulterior.
-          </Text>
         </Section>
 
         <Section title="2. Proveniență">
@@ -880,7 +981,6 @@ export default function AddPartScreen({
             />
           ) : null}
         </Section>
-
         <Section title="6. Stare și verificare">
           <Text style={styles.label}>Starea piesei</Text>
 
@@ -966,6 +1066,23 @@ export default function AddPartScreen({
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={qrScannerVisible}
+        animationType="slide"
+        onRequestClose={() => setQrScannerVisible(false)}
+      >
+        <QrScannerScreen
+          onClose={() => setQrScannerVisible(false)}
+          onCodeScanned={code => {
+            const accepted = acceptQrCode(code);
+
+            if (accepted) {
+              setQrScannerVisible(false);
+            }
+          }}
+        />
+      </Modal>
     </View>
   );
 }
