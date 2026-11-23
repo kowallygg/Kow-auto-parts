@@ -42,11 +42,17 @@ export default function QrScannerScreen({ onCodeScanned, onClose }) {
     }
   };
 
+  const retryScan = () => {
+    setScanned(false);
+  };
+
   if (permission === null) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#60A5FA" />
-        <Text style={styles.message}>Se solicită accesul la cameră...</Text>
+        <Text style={styles.message}>
+          Se solicită accesul la cameră...
+        </Text>
       </View>
     );
   }
@@ -57,7 +63,11 @@ export default function QrScannerScreen({ onCodeScanned, onClose }) {
         <Text style={styles.message}>
           Aplicația nu are permisiunea de a utiliza camera.
         </Text>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={onClose}
+        >
           <Text style={styles.buttonText}>Înapoi</Text>
         </TouchableOpacity>
       </View>
@@ -72,22 +82,50 @@ export default function QrScannerScreen({ onCodeScanned, onClose }) {
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+        onBarcodeScanned={
+          scanned ? undefined : handleBarcodeScanned
+        }
       />
 
       <View style={styles.overlay}>
-        <Text style={styles.title}>Scanează codul QR</Text>
+        <Text style={styles.title}>
+          Scanează codul QR
+        </Text>
+
         <Text style={styles.subtitle}>
           Încadrează codul QR în zona centrală.
         </Text>
 
         <View style={styles.scanFrame} />
 
+        {scanned ? (
+          <View style={styles.retryArea}>
+            <Text style={styles.scannedMessage}>
+              Cod citit. Poți încerca alt cod.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={retryScan}
+            >
+              <Text style={styles.buttonText}>
+                ↻ Încearcă din nou
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.hint}>
+            Așteaptă citirea codului...
+          </Text>
+        )}
+
         <TouchableOpacity
           style={styles.closeButton}
           onPress={onClose}
         >
-          <Text style={styles.buttonText}>✕ Închide scanarea</Text>
+          <Text style={styles.buttonText}>
+            ✕ Închide scanarea
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -137,6 +175,26 @@ const styles = StyleSheet.create({
     borderColor: '#60A5FA',
     borderRadius: 18,
     backgroundColor: 'transparent',
+  },
+  hint: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    marginTop: 10,
+  },
+  retryArea: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  scannedMessage: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  retryButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 13,
+    paddingHorizontal: 24,
+    borderRadius: 10,
   },
   closeButton: {
     backgroundColor: '#DC2626',
