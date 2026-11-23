@@ -17,10 +17,7 @@ const emptyLot = {
   date: new Date().toISOString().slice(0, 10),
   amount: '',
   currency: 'EUR',
-  rate: '1',
-  transport: '',
-  customs: '',
-  otherExpenses: '',
+  rate: '',
   notes: '',
 };
 
@@ -35,17 +32,28 @@ const emptyCar = {
   date: new Date().toISOString().slice(0, 10),
   amount: '',
   currency: 'EUR',
-  rate: '1',
+  rate: '',
   notes: '',
 };
 
+const emptyExpense = {
+  date: new Date().toISOString().slice(0, 10),
+  category: 'Transport',
+  description: '',
+  amount: '',
+  currency: 'EUR',
+  rate: '',
+};
+
 const toNumber = value => {
-  const number = Number(String(value || '0').replace(',', '.'));
+  const number = Number(String(value ?? '0').replace(',', '.'));
   return Number.isFinite(number) ? number : 0;
 };
 
-const money = value =>
-  `${toNumber(value).toFixed(2)} RON`;
+const money = value => `${toNumber(value).toFixed(2)} RON`;
+
+const formatOriginalMoney = (amount, currency) =>
+  `${toNumber(amount).toFixed(2)} ${currency || 'RON'}`;
 
 function Field({
   label,
@@ -101,23 +109,22 @@ export default function AddCarScreen({
   goBack,
   lots = [],
   donorCars = [],
+  expenses = [],
   onSaveLot,
   onSaveDonorCar,
+  onSaveExpense,
+  onDeleteExpense,
   onDeleteLot,
   onDeleteDonorCar,
 }) {
   const [tab, setTab] = useState('lots');
   const [showLotForm, setShowLotForm] = useState(false);
   const [showCarForm, setShowCarForm] = useState(false);
-  const [selectedLotId, setSelectedLotId] = useState('');
   const [lotForm, setLotForm] = useState(emptyLot);
   const [carForm, setCarForm] = useState(emptyCar);
+  const [expenseForm, setExpenseForm] = useState(emptyExpense);
+  const [expenseTarget, setExpenseTarget] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  const selectedLot = useMemo(
-    () => lots.find(item => String(item.id) === String(selectedLotId)),
-    [lots, selectedLotId]
-  );
 
   const updateLot = (key, value) => {
     setLotForm(current => ({ ...current, [key]: value }));
@@ -127,18 +134,135 @@ export default function AddCarScreen({
     setCarForm(current => ({ ...current, [key]: value }));
   };
 
-  const getLotTotalRon = lot => {
-    const rate = toNumber(lot.exchangeRate || lot.rate || 1);
-    const acquisition = toNumber(lot.acquisitionAmount);
-    const transport = toNumber(lot.transportAmount);
-    const customs = toNumber(lot.customsAmount);
-    const other = toNumber(lot.otherExpensesAmount);
+  const updateExpense = (key, value) => {
+    setExpenseForm(current => ({ ...current, [key]: value }));
+  };
+
+  const selectedExpenseOwner = useMemo(() => {
+    if (!expenseTarget) return null;
+
+    if (expenseTarget.type === 'lot') {
+      return lots.find(
+        item => String(item.id) === String(expenseTarget.id)
+      ) || null;
+    }
+
+    return donorCars.find(
+      item => String(item.id) === String(expenseTarget.id)
+    ) || null;
+  }, [expenseTarget, lots, donorCars]);
+
+  const getOwnerCurrency = owner => owner?.currency || 'RON';
+
+  const getOwnerRate = owner => {
+    if (!owner || getOwnerCurrency(owner) === 'RON') return '1';
+    return String(owner.exchangeRate || '1');
+  };
+
+  const openExpenseForm = (type, owner) => {
+    const currency = getOwnerCurrency(owner);
+    const rate = getOwnerRate(owner);
+
+    setExpenseTarget({
+      type,
+      id: owner.id,
+    });
+
+    setExpenseForm({
+      ...emptyExpense,
+      currency,
+      rate,
+    });
+  };
+
+  const changeExpenseCurrency = currency => {
+    const owner = selectedExpenseOwner;
+    const ownerCurrency = getOwnerCurrency(owner);
+
+    setExpenseForm(current => ({
+      ...current,
+      currency,
+      rate:
+        currency === 'RON'
+          ? '1'
+          : currency === ownerCurrency
+            ? getOwnerRate(owner)
+            : '',
+    }));
+  };
+
+  const closeExpenseForm = () => {
+    setExpenseTarget(null);
+    setExpenseForm(emptyExpense);
+  };
+
+  const getExpenseRon = expense => {
+    const rate =
+      expense.currency === 'RON'
+        ? 1
+        : toNumber(expense.exchangeRate);
+
+    return toNumber(expense.amount) * rate;
+  };
+
+  const getOwnerExpenses = (type, id) => {
+    return expenses.filter(expense => {
+      if (type === 'lot') {
+        return (
+          String(expense.lotId) === String(id) &&
+          !expense.donorCarId
+        );
+      }
+
+      return String(expense.donorCarId) === String(id);
+    });
+  };
+
+  const getOwnerExpenseTotal = (type, id) => {
+    return getOwnerExpenses(type, id).reduce(
+      (sum, expense) => sum + getExpenseRon(expense),
+      0
+    );
+  };
+
+  const getLotLegacyCosts = lot => {
+    const rate = toNumber(lot.exchangeRate || 1);
 
     return (
-      acquisition * rate +
-      transport * rate +
-      customs * rate +
-      other * rate
+      toNumber(lot.transportAmount) * rate +
+      toNumber(lot.customsAmount) * rate +
+      toNumber(lot.otherExpensesAmount) * rate
+    );
+  };
+
+  const getLotTotalRon = lot => {
+    const acquisition = toNumber(
+      lot.acquisitionRon ??
+      (
+        toNumber(lot.acquisitionAmount) *
+        toNumber(lot.exchangeRate || 1)
+      )
+    );
+
+    return (
+      acquisition +
+      getLotLegacyCosts(lot) +
+      getOwnerExpenseTotal('lot', lot.id)
+    );
+  };
+
+  const getCarDirectTotal = car => {
+    const acquisition = toNumber(
+      car.acquisitionRon ??
+      (
+        toNumber(car.acquisitionAmount) *
+        toNumber(car.exchangeRate || 1)
+      )
+    );
+
+    return (
+      acquisition +
+      getOwnerExpenseTotal('car', car.id)
     );
   };
 
@@ -151,7 +275,10 @@ export default function AddCarScreen({
     }
 
     const amount = toNumber(lotForm.amount);
-    const rate = toNumber(lotForm.rate);
+    const rate =
+      lotForm.currency === 'RON'
+        ? 1
+        : toNumber(lotForm.rate);
 
     if (amount < 0 || rate <= 0) {
       Alert.alert(
@@ -168,13 +295,11 @@ export default function AddCarScreen({
       acquisitionDate: lotForm.date,
       acquisitionAmount: amount,
       currency: lotForm.currency,
-      exchangeRate: lotForm.currency === 'RON' ? 1 : rate,
-      acquisitionRon: amount * (
-        lotForm.currency === 'RON' ? 1 : rate
-      ),
-      transportAmount: toNumber(lotForm.transport),
-      customsAmount: toNumber(lotForm.customs),
-      otherExpensesAmount: toNumber(lotForm.otherExpenses),
+      exchangeRate: rate,
+      acquisitionRon: amount * rate,
+      transportAmount: 0,
+      customsAmount: 0,
+      otherExpensesAmount: 0,
       expenses: [],
       notes: lotForm.notes.trim(),
       createdAt: new Date().toISOString(),
@@ -185,7 +310,10 @@ export default function AddCarScreen({
       await onSaveLot(lot);
       setLotForm(emptyLot);
       setShowLotForm(false);
-      Alert.alert('Salvat', 'Lotul a fost înregistrat.');
+      Alert.alert(
+        'Salvat',
+        'Lotul a fost înregistrat. Transportul și taxele pot fi adăugate separat la cheltuieli.'
+      );
     } catch (error) {
       Alert.alert('Eroare', 'Lotul nu a putut fi salvat.');
     } finally {
@@ -213,7 +341,10 @@ export default function AddCarScreen({
     }
 
     const amount = toNumber(carForm.amount);
-    const rate = toNumber(carForm.rate);
+    const rate =
+      carForm.currency === 'RON'
+        ? 1
+        : toNumber(carForm.rate);
 
     if (amount < 0 || rate <= 0) {
       Alert.alert(
@@ -236,10 +367,8 @@ export default function AddCarScreen({
       acquisitionDate: carForm.date,
       acquisitionAmount: amount,
       currency: carForm.currency,
-      exchangeRate: carForm.currency === 'RON' ? 1 : rate,
-      acquisitionRon: amount * (
-        carForm.currency === 'RON' ? 1 : rate
-      ),
+      exchangeRate: rate,
+      acquisitionRon: amount * rate,
       allocatedLotCostRon: 0,
       directExpenses: [],
       notes: carForm.notes.trim(),
@@ -254,7 +383,10 @@ export default function AddCarScreen({
         lotId: carForm.lotId,
       });
       setShowCarForm(false);
-      Alert.alert('Salvat', 'Mașina donatoare a fost înregistrată.');
+      Alert.alert(
+        'Salvat',
+        'Mașina donatoare a fost înregistrată.'
+      );
     } catch (error) {
       Alert.alert('Eroare', 'Mașina nu a putut fi salvată.');
     } finally {
@@ -262,15 +394,92 @@ export default function AddCarScreen({
     }
   };
 
+  const saveExpense = async () => {
+    if (saving) return;
+
+    if (!expenseTarget || !selectedExpenseOwner) {
+      Alert.alert('Eroare', 'Nu este selectată o înregistrare.');
+      return;
+    }
+
+    const amount = toNumber(expenseForm.amount);
+    const rate =
+      expenseForm.currency === 'RON'
+        ? 1
+        : toNumber(expenseForm.rate);
+
+    if (amount <= 0 || rate <= 0) {
+      Alert.alert(
+        'Valori incorecte',
+        'Introdu o sumă și un curs valutar valid.'
+      );
+      return;
+    }
+
+    const owner =
+      expenseTarget.type === 'lot'
+        ? null
+        : selectedExpenseOwner;
+
+    const lotId =
+      expenseTarget.type === 'lot'
+        ? selectedExpenseOwner.id
+        : selectedExpenseOwner.lotId || null;
+
+    const expense = {
+      id: `EXP-${Date.now()}`,
+      lotId,
+      donorCarId: owner ? owner.id : null,
+      date: expenseForm.date,
+      category: expenseForm.category,
+      description: expenseForm.description.trim(),
+      amount,
+      currency: expenseForm.currency,
+      exchangeRate: rate,
+      amountRon: amount * rate,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      setSaving(true);
+      await onSaveExpense(expense);
+      closeExpenseForm();
+      Alert.alert('Salvat', 'Cheltuiala a fost înregistrată.');
+    } catch (error) {
+      Alert.alert('Eroare', 'Cheltuiala nu a putut fi salvată.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDeleteExpense = expense => {
+    Alert.alert(
+      'Ștergere cheltuială',
+      `Ștergi cheltuiala „${expense.category || 'Cheltuială'}”?`,
+      [
+        { text: 'Anulează', style: 'cancel' },
+        {
+          text: 'Șterge',
+          style: 'destructive',
+          onPress: () => onDeleteExpense && onDeleteExpense(expense.id),
+        },
+      ]
+    );
+  };
+
   const confirmDeleteLot = lot => {
     const linkedCars = donorCars.filter(
       car => String(car.lotId) === String(lot.id)
     );
 
-    if (linkedCars.length > 0) {
+    const linkedExpenses = expenses.some(
+      expense => String(expense.lotId) === String(lot.id)
+    );
+
+    if (linkedCars.length > 0 || linkedExpenses) {
       Alert.alert(
-        'Lotul are mașini asociate',
-        'Nu poți șterge lotul cât timp are mașini donatoare asociate.'
+        'Lot utilizat',
+        'Nu poți șterge lotul cât timp are mașini sau cheltuieli asociate.'
       );
       return;
     }
@@ -290,6 +499,18 @@ export default function AddCarScreen({
   };
 
   const confirmDeleteCar = car => {
+    const linkedExpenses = expenses.some(
+      expense => String(expense.donorCarId) === String(car.id)
+    );
+
+    if (linkedExpenses) {
+      Alert.alert(
+        'Mașină cu cheltuieli',
+        'Șterge mai întâi cheltuielile asociate acestei mașini.'
+      );
+      return;
+    }
+
     Alert.alert(
       'Ștergere mașină',
       `Ștergi ${car.brand} ${car.model}?`,
@@ -301,6 +522,140 @@ export default function AddCarScreen({
           onPress: () => onDeleteDonorCar && onDeleteDonorCar(car.id),
         },
       ]
+    );
+  };
+
+  const renderExpenseList = (type, id) => {
+    const list = getOwnerExpenses(type, id);
+
+    if (list.length === 0) {
+      return (
+        <Text style={styles.helper}>
+          Nu există cheltuieli înregistrate separat.
+        </Text>
+      );
+    }
+
+    return list.map(expense => (
+      <View key={expense.id} style={styles.expenseLine}>
+        <View style={styles.expenseInfo}>
+          <Text style={styles.expenseTitle}>
+            {expense.category || 'Cheltuială'}
+            {expense.description ? ` · ${expense.description}` : ''}
+          </Text>
+          <Text style={styles.meta}>
+            {expense.date || 'Dată nespecificată'} ·{' '}
+            {formatOriginalMoney(expense.amount, expense.currency)}
+            {' · '}curs {toNumber(expense.exchangeRate || 1).toFixed(4)}
+          </Text>
+          <Text style={styles.expenseRon}>
+            {money(expense.amountRon ?? getExpenseRon(expense))}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.smallDeleteButton}
+          onPress={() => confirmDeleteExpense(expense)}
+        >
+          <Text style={styles.deleteText}>Șterge</Text>
+        </TouchableOpacity>
+      </View>
+    ));
+  };
+
+  const renderExpenseForm = () => {
+    if (!expenseTarget) return null;
+
+    return (
+      <View style={styles.expenseForm}>
+        <Text style={styles.cardTitle}>
+          Cheltuială nouă
+        </Text>
+
+        <Text style={styles.label}>Tip cheltuială</Text>
+        <ChoiceRow
+          values={[
+            'Transport',
+            'Taxe vamale',
+            'Import',
+            'Reparații',
+            'Altele',
+          ]}
+          selected={expenseForm.category}
+          onSelect={value => updateExpense('category', value)}
+        />
+
+        <Field
+          label="Data cheltuielii"
+          value={expenseForm.date}
+          onChangeText={value => updateExpense('date', value)}
+          placeholder="AAAA-LL-ZZ"
+        />
+
+        <Field
+          label="Descriere"
+          value={expenseForm.description}
+          onChangeText={value => updateExpense('description', value)}
+          placeholder="Ex.: transport Germania – România"
+        />
+
+        <Field
+          label="Sumă"
+          value={expenseForm.amount}
+          onChangeText={value => updateExpense('amount', value)}
+          keyboardType="decimal-pad"
+        />
+
+        <Text style={styles.label}>Monedă cheltuială</Text>
+        <ChoiceRow
+          values={CURRENCIES}
+          selected={expenseForm.currency}
+          onSelect={changeExpenseCurrency}
+        />
+
+        {expenseForm.currency !== 'RON' ? (
+          <Field
+            label={`Curs ${expenseForm.currency} → RON`}
+            value={expenseForm.rate}
+            onChangeText={value => updateExpense('rate', value)}
+            keyboardType="decimal-pad"
+          />
+        ) : null}
+
+        <Text style={styles.calculated}>
+          Valoare convertită: {money(
+            toNumber(expenseForm.amount) *
+            (
+              expenseForm.currency === 'RON'
+                ? 1
+                : toNumber(expenseForm.rate)
+            )
+          )}
+        </Text>
+
+        <Text style={styles.helper}>
+          Dacă moneda este aceeași cu moneda achiziției, cursul este preluat automat.
+          Dacă alegi altă monedă, introdu cursul separat. Cursul se salvează
+          definitiv pentru această cheltuială.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={saveExpense}
+          disabled={saving}
+        >
+          <Text style={styles.primaryButtonText}>
+            {saving ? 'Se salvează...' : 'Salvează cheltuiala'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={closeExpenseForm}
+        >
+          <Text style={styles.cancelText}>Renunță</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -333,7 +688,13 @@ export default function AddCarScreen({
       <ChoiceRow
         values={CURRENCIES}
         selected={lotForm.currency}
-        onSelect={value => updateLot('currency', value)}
+        onSelect={value =>
+          setLotForm(current => ({
+            ...current,
+            currency: value,
+            rate: value === 'RON' ? '1' : '',
+          }))
+        }
       />
 
       {lotForm.currency !== 'RON' ? (
@@ -346,27 +707,6 @@ export default function AddCarScreen({
       ) : null}
 
       <Field
-        label="Transport (în moneda achiziției)"
-        value={lotForm.transport}
-        onChangeText={value => updateLot('transport', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <Field
-        label="Taxe vamale / import"
-        value={lotForm.customs}
-        onChangeText={value => updateLot('customs', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <Field
-        label="Alte cheltuieli"
-        value={lotForm.otherExpenses}
-        onChangeText={value => updateLot('otherExpenses', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <Field
         label="Observații"
         value={lotForm.notes}
         onChangeText={value => updateLot('notes', value)}
@@ -376,13 +716,18 @@ export default function AddCarScreen({
       <Text style={styles.calculated}>
         Achiziție convertită: {money(
           toNumber(lotForm.amount) *
-          (lotForm.currency === 'RON' ? 1 : toNumber(lotForm.rate))
+          (
+            lotForm.currency === 'RON'
+              ? 1
+              : toNumber(lotForm.rate)
+          )
         )}
       </Text>
 
       <Text style={styles.helper}>
-        Transportul, taxele și celelalte cheltuieli sunt păstrate separat
-        și incluse în costul total al lotului.
+        Transportul, taxele și celelalte cheltuieli se vor adăuga separat
+        după salvarea lotului. Fiecare cheltuială poate avea propria monedă
+        și propriul curs, păstrat la data înregistrării.
       </Text>
 
       <TouchableOpacity
@@ -472,7 +817,6 @@ export default function AddCarScreen({
         label="Serie șasiu (VIN)"
         value={carForm.vin}
         onChangeText={value => updateCar('vin', value)}
-        autoCapitalize="characters"
       />
 
       <Field
@@ -493,7 +837,13 @@ export default function AddCarScreen({
       <ChoiceRow
         values={CURRENCIES}
         selected={carForm.currency}
-        onSelect={value => updateCar('currency', value)}
+        onSelect={value =>
+          setCarForm(current => ({
+            ...current,
+            currency: value,
+            rate: value === 'RON' ? '1' : '',
+          }))
+        }
       />
 
       {carForm.currency !== 'RON' ? (
@@ -515,13 +865,18 @@ export default function AddCarScreen({
       <Text style={styles.calculated}>
         Achiziție convertită: {money(
           toNumber(carForm.amount) *
-          (carForm.currency === 'RON' ? 1 : toNumber(carForm.rate))
+          (
+            carForm.currency === 'RON'
+              ? 1
+              : toNumber(carForm.rate)
+          )
         )}
       </Text>
 
       <Text style={styles.helper}>
-        Dacă mașina aparține unui lot, costul ei individual este separat
-        de costul comun al lotului. Cota din costul comun se va aloca manual.
+        Cursul se salvează pentru această mașină și nu se modifică atunci
+        când înregistrezi alte achiziții. Cheltuielile mașinii se adaugă
+        separat după salvare.
       </Text>
 
       <TouchableOpacity
@@ -559,6 +914,7 @@ export default function AddCarScreen({
           onPress={() => {
             setTab('lots');
             setShowCarForm(false);
+            setExpenseTarget(null);
           }}
         >
           <Text style={styles.tabText}>LOTURI ({lots.length})</Text>
@@ -569,13 +925,17 @@ export default function AddCarScreen({
           onPress={() => {
             setTab('cars');
             setShowLotForm(false);
+            setExpenseTarget(null);
           }}
         >
           <Text style={styles.tabText}>MAȘINI ({donorCars.length})</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {tab === 'lots' ? (
           <>
             <TouchableOpacity
@@ -607,18 +967,26 @@ export default function AddCarScreen({
                 return (
                   <View key={lot.id} style={styles.card}>
                     <Text style={styles.cardTitle}>{lot.name}</Text>
+
                     <Text style={styles.meta}>
                       Data: {lot.acquisitionDate || 'Nespecificată'}
                     </Text>
+
                     <Text style={styles.meta}>
-                      Achiziție: {toNumber(lot.acquisitionAmount).toFixed(2)} {lot.currency || 'RON'}
+                      Achiziție: {formatOriginalMoney(
+                        lot.acquisitionAmount,
+                        lot.currency
+                      )}
                     </Text>
+
                     <Text style={styles.meta}>
-                      Curs folosit: {toNumber(lot.exchangeRate || 1).toFixed(4)}
+                      Curs achiziție: {toNumber(lot.exchangeRate || 1).toFixed(4)}
                     </Text>
+
                     <Text style={styles.total}>
-                      Cost lot înregistrat: {money(total)}
+                      Cost total lot: {money(total)}
                     </Text>
+
                     <Text style={styles.meta}>
                       Mașini asociate: {cars.length}
                     </Text>
@@ -628,6 +996,29 @@ export default function AddCarScreen({
                         🚗 {car.brand} {car.model} {car.year}
                       </Text>
                     ))}
+
+                    <View style={styles.expenseSection}>
+                      <Text style={styles.expenseHeading}>
+                        Cheltuieli ale lotului
+                      </Text>
+
+                      {renderExpenseList('lot', lot.id)}
+
+                      <Text style={styles.meta}>
+                        Total cheltuieli: {money(
+                          getOwnerExpenseTotal('lot', lot.id)
+                        )}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={styles.secondaryAction}
+                        onPress={() => openExpenseForm('lot', lot)}
+                      >
+                        <Text style={styles.secondaryActionText}>
+                          ＋ Adaugă transport / taxe / cheltuială
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
                     {lot.notes ? (
                       <Text style={styles.meta}>{lot.notes}</Text>
@@ -677,26 +1068,65 @@ export default function AddCarScreen({
                     <Text style={styles.cardTitle}>
                       {car.brand} {car.model}
                     </Text>
+
                     <Text style={styles.meta}>
                       An: {car.year || 'Nespecificat'}
                     </Text>
+
                     <Text style={styles.meta}>
                       Motor: {[car.engine, car.engineCode].filter(Boolean).join(' · ') || 'Nespecificat'}
                     </Text>
+
                     <Text style={styles.meta}>
                       VIN: {car.vin || 'Nespecificat'}
                     </Text>
+
                     <Text style={styles.meta}>
                       Lot: {lot ? lot.name : 'Achiziție individuală / fără lot'}
                     </Text>
-                    {toNumber(car.acquisitionAmount) > 0 ? (
-                      <Text style={styles.total}>
-                        Achiziție individuală: {money(car.acquisitionRon)}
-                      </Text>
-                    ) : null}
+
+                    <Text style={styles.meta}>
+                      Achiziție: {formatOriginalMoney(
+                        car.acquisitionAmount,
+                        car.currency
+                      )}
+                    </Text>
+
+                    <Text style={styles.meta}>
+                      Curs achiziție: {toNumber(car.exchangeRate || 1).toFixed(4)}
+                    </Text>
+
+                    <Text style={styles.total}>
+                      Cost direct mașină: {money(getCarDirectTotal(car))}
+                    </Text>
+
                     <Text style={styles.meta}>
                       Cost comun alocat: {money(car.allocatedLotCostRon)}
                     </Text>
+
+                    <View style={styles.expenseSection}>
+                      <Text style={styles.expenseHeading}>
+                        Cheltuieli directe ale mașinii
+                      </Text>
+
+                      {renderExpenseList('car', car.id)}
+
+                      <Text style={styles.meta}>
+                        Total cheltuieli directe: {money(
+                          getOwnerExpenseTotal('car', car.id)
+                        )}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={styles.secondaryAction}
+                        onPress={() => openExpenseForm('car', car)}
+                      >
+                        <Text style={styles.secondaryActionText}>
+                          ＋ Adaugă cheltuială pentru mașină
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
                     {car.notes ? (
                       <Text style={styles.meta}>{car.notes}</Text>
                     ) : null}
@@ -713,6 +1143,8 @@ export default function AddCarScreen({
             )}
           </>
         )}
+
+        {expenseTarget ? renderExpenseForm() : null}
       </ScrollView>
     </View>
   );
@@ -810,6 +1242,7 @@ const styles = StyleSheet.create({
   },
   choiceRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
@@ -818,7 +1251,7 @@ const styles = StyleSheet.create({
     borderColor: '#435168',
     backgroundColor: '#101722',
     paddingVertical: 9,
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
   choiceSelected: {
@@ -828,6 +1261,7 @@ const styles = StyleSheet.create({
   choiceText: {
     color: '#C4CFDE',
     fontWeight: '700',
+    fontSize: 12,
   },
   choiceTextSelected: {
     color: '#8EF0BD',
@@ -843,6 +1277,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 14,
+  },
+  secondaryAction: {
+    backgroundColor: '#26364B',
+    borderRadius: 8,
+    padding: 11,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  secondaryActionText: {
+    color: '#EAF2FF',
+    fontWeight: '700',
+    fontSize: 12,
+    textAlign: 'center',
   },
   cancelButton: {
     padding: 12,
@@ -918,6 +1365,55 @@ const styles = StyleSheet.create({
   selectedMark: {
     color: '#4ADE80',
     fontWeight: '900',
+  },
+  expenseSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#354255',
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  expenseHeading: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  expenseLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2B3748',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  expenseInfo: {
+    flex: 1,
+  },
+  expenseTitle: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  expenseRon: {
+    color: '#4ADE80',
+    fontWeight: '800',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  smallDeleteButton: {
+    borderWidth: 1,
+    borderColor: '#9B3434',
+    borderRadius: 7,
+    padding: 7,
+  },
+  expenseForm: {
+    backgroundColor: '#19212E',
+    borderWidth: 1,
+    borderColor: '#36B37E',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 12,
   },
   deleteButton: {
     borderWidth: 1,
