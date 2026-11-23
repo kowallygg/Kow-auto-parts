@@ -6,17 +6,189 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+const normalizeText = value =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+const getCodeLabel = path => {
+  const labels = {
+    oemCode: 'Cod OEM',
+    oemCodes: 'Coduri OEM',
+    producerCode: 'Cod producător',
+    manufacturerCode: 'Cod producător',
+    manufacturerCodes: 'Coduri producător',
+    sensorCodes: 'Coduri senzori',
+    sensorCode: 'Cod senzor',
+    grilleCodes: 'Coduri grile',
+    codes: 'Coduri componente',
+    code: 'Cod componentă',
+    colorCode: 'Cod culoare',
+    left: 'Stânga',
+    right: 'Dreapta',
+    washers: 'Spălătoare faruri',
+    fogLights: 'Proiectoare',
+    grilles: 'Grile',
+    sensors: 'Senzori',
+    extraFeatures: 'Dotări suplimentare',
+  };
+
+  return path
+    .replace(/\[(\d+)\]/g, ' $1')
+    .split('.')
+    .filter(Boolean)
+    .map(part => labels[part] || part)
+    .join(' → ');
+};
+
+const isCodeField = key => {
+  const normalized = normalizeText(key).replace(/[^a-z0-9]/g, '');
+
+  return (
+    normalized === 'code' ||
+    normalized.includes('oem') ||
+    normalized.includes('producercode') ||
+    normalized.includes('manufacturercode') ||
+    normalized.includes('sensorcode') ||
+    normalized.includes('grillecode') ||
+    normalized.includes('partcode') ||
+    normalized.includes('componentcode') ||
+    normalized.includes('cod')
+  );
+};
+
+const getPartCodeMatches = part => {
+  const matches = [];
+  const visited = new Set();
+
+  const walk = (value, path = '', parentIsCode = false) => {
+    if (value === null || value === undefined) return;
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      if (parentIsCode && String(value).trim()) {
+        matches.push({
+          value: String(value).trim(),
+          label: getCodeLabel(path),
+          path,
+        });
+      }
+      return;
+    }
+
+    if (typeof value !== 'object' || visited.has(value)) return;
+
+    visited.add(value);
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        walk(item, `${path}[${index}]`, parentIsCode);
+      });
+      return;
+    }
+
+    Object.entries(value).forEach(([key, child]) => {
+      const childPath = path ? `${path}.${key}` : key;
+      walk(child, childPath, isCodeField(key) || parentIsCode);
+    });
+  };
+
+  walk(part);
+
+  const unique = [];
+  const seen = new Set();
+
+  matches.forEach(match => {
+    const key = `${normalizeText(match.value)}|${match.path}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(match);
+    }
+  });
+
+  [
+    ['oemCode', part.oemCode],
+    ['producerCode', part.producerCode],
+    ['qrCode', part.qrCode],
+  ].forEach(([key, value]) => {
+    if (!value) return;
+
+    const normalized = normalizeText(value);
+
+    if (
+      !unique.some(
+        item =>
+          normalizeText(item.value) === normalized &&
+          item.path === key
+      )
+    ) {
+      unique.push({
+        value: String(value).trim(),
+        label: getCodeLabel(key),
+        path: key,
+      });
+    }
+  });
+
+  return unique;
+};
+
+const getPartSearchText = item => {
+  const bumper = item.baraFata || {};
+
+  const generalValues = [
+    item.partName,
+    item.qrCode,
+    item.id,
+    item.oemCode,
+    item.producerCode,
+    item.carMake,
+    item.carModel,
+    item.engine,
+    item.engineCode,
+    item.year,
+    item.transmissionType,
+    item.transmissionCode,
+    item.position,
+    item.axlePosition,
+    item.colorCode,
+    item.wheelType,
+    item.diameter,
+    item.rimWidth,
+    item.offset,
+    item.pcd,
+    item.tireSize,
+    item.category,
+    item.subcategoryName,
+    item.car,
+    bumper.carMake,
+    bumper.carModel,
+    bumper.year,
+    bumper.colorCode,
+  ];
+
+  const codes = getPartCodeMatches(item).map(match => match.value);
+
+  return normalizeText(
+    [...generalValues, ...codes].filter(Boolean).join(' ')
+  );
+};
+
 export default function StockScreen({
-  stockParts,
+  stockParts = [],
   goBack,
   onDeletePart,
   onOpenPart,
 }) {
   const [deletingId, setDeletingId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const getOemCode = item => {
     if (item.baraFata?.oemCodes?.length) {
@@ -35,14 +207,19 @@ export default function StockScreen({
     return details || car || 'Nespecificată';
   };
 
-  const getColorCode = item => {
-    return item.baraFata?.colorCode || item.colorCode || '';
-  };
+  const getColorCode = item =>
+    item.baraFata?.colorCode || item.colorCode || '';
+
+  const normalizedSearch = normalizeText(searchQuery);
+
+  const filteredParts = normalizedSearch
+    ? stockParts.filter(item =>
+        getPartSearchText(item).includes(normalizedSearch)
+      )
+    : stockParts;
 
   const confirmDelete = item => {
-    if (deletingId !== null) {
-      return;
-    }
+    if (deletingId !== null) return;
 
     Alert.alert(
       'Confirmare ștergere',
@@ -56,9 +233,7 @@ export default function StockScreen({
           text: 'Șterge',
           style: 'destructive',
           onPress: async () => {
-            if (deletingId !== null) {
-              return;
-            }
+            if (deletingId !== null) return;
 
             setDeletingId(item.id);
 
@@ -91,7 +266,29 @@ export default function StockScreen({
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContent}>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Caută piesă, OEM, senzor, grilă..."
+        placeholderTextColor="#6B7280"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="search"
+      />
+
+      {normalizedSearch ? (
+        <Text style={styles.resultCount}>
+          {filteredParts.length > 0
+            ? `${filteredParts.length} rezultate găsite`
+            : 'Nu am găsit nicio piesă'}
+        </Text>
+      ) : null}
+
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {stockParts.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyIcon}>📦</Text>
@@ -102,15 +299,28 @@ export default function StockScreen({
               Adaugă prima piesă folosind formularul!
             </Text>
           </View>
+        ) : filteredParts.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyIcon}>🔎</Text>
+            <Text style={styles.emptyText}>
+              Nu există piese care să corespundă căutării.
+            </Text>
+          </View>
         ) : (
-          stockParts.map(item => {
+          filteredParts.map(item => {
             const oemCode = getOemCode(item);
             const colorCode = getColorCode(item);
             const isBodywork = item.category === 'caroserie';
             const isDeleting = deletingId === item.id;
 
+            const matchedCodes = normalizedSearch
+              ? getPartCodeMatches(item).filter(match =>
+                  normalizeText(match.value).includes(normalizedSearch)
+                )
+              : [];
+
             return (
-              <View key={item.id} style={styles.partCard}>
+              <View key={String(item.id)} style={styles.partCard}>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => onOpenPart && onOpenPart(item)}
@@ -141,6 +351,15 @@ export default function StockScreen({
                       Cod producător: {item.producerCode}
                     </Text>
                   ) : null}
+
+                  {matchedCodes.map((match, index) => (
+                    <Text
+                      key={`${match.path}-${index}`}
+                      style={styles.matchText}
+                    >
+                      Potrivire: {match.label}: {match.value}
+                    </Text>
+                  ))}
 
                   <Text style={styles.partMeta}>
                     Mașină: {getCarName(item)}
@@ -223,6 +442,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  searchInput: {
+    backgroundColor: '#161920',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 10,
+    color: '#FFFFFF',
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  resultCount: {
+    color: '#60A5FA',
+    fontSize: 12,
+    marginBottom: 8,
+  },
   listContent: {
     paddingBottom: 40,
   },
@@ -279,6 +514,11 @@ const styles = StyleSheet.create({
     color: '#B8C1CE',
     fontSize: 12,
     marginTop: 4,
+  },
+  matchText: {
+    color: '#60A5FA',
+    fontSize: 11,
+    marginTop: 5,
   },
   bottomRow: {
     flexDirection: 'row',
