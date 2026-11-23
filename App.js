@@ -93,6 +93,7 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [selectedPart, setSelectedPart] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [detailsReturnScreen, setDetailsReturnScreen] = useState('home');
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -393,6 +394,7 @@ export default function App() {
     }
 
     setSelectedPart(foundPart);
+    setDetailsReturnScreen('home');
     setCurrentScreen('details');
   };
 
@@ -410,6 +412,7 @@ export default function App() {
 
   const openSearchResult = part => {
     setSelectedPart(part);
+    setDetailsReturnScreen('home');
     setSearchQuery('');
     setCurrentScreen('details');
   };
@@ -477,7 +480,7 @@ export default function App() {
     return (
       <PartDetailsScreen
         part={selectedPart}
-        goBack={() => setCurrentScreen('stock')}
+        goBack={() => setCurrentScreen(detailsReturnScreen)}
         onSellPart={handleSellPart}
         lots={lots}
         donorCars={donorCars}
@@ -495,6 +498,7 @@ export default function App() {
         onDeletePart={handleDeletePart}
         onOpenPart={part => {
           setSelectedPart(part);
+          setDetailsReturnScreen('stock');
           setCurrentScreen('details');
         }}
       />
@@ -905,3 +909,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+ 
