@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +36,52 @@ const readArray = async key => {
   }
 
   return parsed;
+};
+
+const normalizeText = value => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+};
+
+const getPartSearchText = part => {
+  const bumper = part.baraFata || {};
+
+  const values = [
+    part.partName,
+    part.qrCode,
+    part.id,
+    part.oemCode,
+    part.producerCode,
+    part.carMake,
+    part.carModel,
+    part.engine,
+    part.engineCode,
+    part.year,
+    part.transmissionType,
+    part.transmissionCode,
+    part.position,
+    part.axlePosition,
+    part.colorCode,
+    part.wheelType,
+    part.diameter,
+    part.rimWidth,
+    part.offset,
+    part.pcd,
+    part.tireSize,
+    part.category,
+    part.subcategoryName,
+    part.car,
+    bumper.carMake,
+    bumper.carModel,
+    bumper.year,
+    bumper.colorCode,
+    ...(bumper.oemCodes || []),
+  ];
+
+  return normalizeText(values.filter(Boolean).join(' '));
 };
 
 export default function App() {
@@ -348,7 +396,24 @@ export default function App() {
     setCurrentScreen('details');
   };
 
-  // PARTEA 2 CONTINUĂ AICI
+  // REZULTATE CĂUTARE
+
+  const normalizedSearch = normalizeText(searchQuery);
+
+  const searchResults = normalizedSearch
+    ? stockParts
+        .filter(part =>
+          getPartSearchText(part).includes(normalizedSearch)
+        )
+        .slice(0, 8)
+    : [];
+
+  const openSearchResult = part => {
+    setSelectedPart(part);
+    setSearchQuery('');
+    setCurrentScreen('details');
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -484,72 +549,147 @@ export default function App() {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Caută piese, cod OEM, mașini..."
+          placeholder="Caută denumire, OEM, producător, QR..."
           placeholderTextColor="#6B7280"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          autoCorrect={false}
+          returnKeyType="search"
         />
+
+        {normalizedSearch ? (
+          <View style={styles.searchResults}>
+            <Text style={styles.searchResultsTitle}>
+              {searchResults.length > 0
+                ? `Rezultate (${searchResults.length}${stockParts.filter(part =>
+                    getPartSearchText(part).includes(normalizedSearch)
+                  ).length > 8 ? '+' : ''})`
+                : 'Nu am găsit nicio piesă'}
+            </Text>
+
+            {searchResults.map(part => (
+              <TouchableOpacity
+                key={String(part.id)}
+                style={styles.searchResultItem}
+                onPress={() => openSearchResult(part)}
+              >
+                <View style={styles.searchResultInfo}>
+                  <Text style={styles.searchResultName}>
+                    {part.partName || 'Piesă fără denumire'}
+                  </Text>
+
+                  <Text style={styles.searchResultMeta}>
+                    {[
+                      part.carMake,
+                      part.carModel,
+                      part.engineCode,
+                    ].filter(Boolean).join(' ')}
+                  </Text>
+
+                  <Text style={styles.searchResultMeta}>
+                    {part.oemCode
+                      ? `OEM: ${part.oemCode}`
+                      : part.producerCode
+                        ? `Producător: ${part.producerCode}`
+                        : `QR: ${part.qrCode || part.id}`}
+                  </Text>
+                </View>
+
+                <Text style={styles.searchResultArrow}>›</Text>
+              </TouchableOpacity>
+            ))}
+
+            {stockParts.filter(part =>
+              getPartSearchText(part).includes(normalizedSearch)
+            ).length > 8 ? (
+              <Text style={styles.moreResultsText}>
+                Sunt mai multe rezultate. Deschide Stoc piese pentru lista completă.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
-      <TouchableOpacity
-        style={styles.navButton}
-        onPress={() => setCurrentScreen('cars')}
+      <ScrollView
+        style={styles.homeScroll}
+        contentContainerStyle={styles.homeScrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.navButtonIcon}>🚗</Text>
-        <Text style={styles.navButtonText}>
-          Proveniență: loturi și mașini
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navButton}
-        onPress={() => setCurrentScreen('sales')}
-      >
-        <Text style={styles.navButtonIcon}>💰</Text>
-        <Text style={styles.navButtonText}>
-          Vânzări ({sales.length})
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navButtonScan}
-        onPress={() => setCurrentScreen('scan')}
-      >
-        <Text style={styles.navButtonIcon}>📷</Text>
-        <Text style={styles.navButtonTextScan}>
-          Scanează cod QR
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={() => setCurrentScreen('add')}
-      >
-        <Text style={styles.primaryButtonIcon}>➕</Text>
-        <View>
-          <Text style={styles.primaryButtonTitle}>
-            Adaugă piesă
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => {
+            setSearchQuery('');
+            setCurrentScreen('cars');
+          }}
+        >
+          <Text style={styles.navButtonIcon}>🚗</Text>
+          <Text style={styles.navButtonText}>
+            Proveniență: loturi și mașini
           </Text>
-          <Text style={styles.primaryButtonDesc}>
-            Formular detalii și poze
-          </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => setCurrentScreen('stock')}
-      >
-        <Text style={styles.secondaryButtonIcon}>📦</Text>
-        <View>
-          <Text style={styles.secondaryButtonTitle}>
-            Stoc piese ({stockParts.length})
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => {
+            setSearchQuery('');
+            setCurrentScreen('sales');
+          }}
+        >
+          <Text style={styles.navButtonIcon}>💰</Text>
+          <Text style={styles.navButtonText}>
+            Vânzări ({sales.length})
           </Text>
-          <Text style={styles.secondaryButtonDesc}>
-            Vezi piesele salvate
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navButtonScan}
+          onPress={() => {
+            setSearchQuery('');
+            setCurrentScreen('scan');
+          }}
+        >
+          <Text style={styles.navButtonIcon}>📷</Text>
+          <Text style={styles.navButtonTextScan}>
+            Scanează cod QR
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => {
+            setSearchQuery('');
+            setCurrentScreen('add');
+          }}
+        >
+          <Text style={styles.primaryButtonIcon}>➕</Text>
+          <View>
+            <Text style={styles.primaryButtonTitle}>
+              Adaugă piesă
+            </Text>
+            <Text style={styles.primaryButtonDesc}>
+              Formular detalii și poze
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => {
+            setSearchQuery('');
+            setCurrentScreen('stock');
+          }}
+        >
+          <Text style={styles.secondaryButtonIcon}>📦</Text>
+          <View>
+            <Text style={styles.secondaryButtonTitle}>
+              Stoc piese ({stockParts.length})
+            </Text>
+            <Text style={styles.secondaryButtonDesc}>
+              Vezi piesele salvate
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -616,6 +756,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginBottom: 16,
+    zIndex: 2,
   },
   searchInput: {
     backgroundColor: '#161920',
@@ -626,6 +767,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 46,
     fontSize: 14,
+  },
+  searchResults: {
+    backgroundColor: '#161920',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 12,
+    marginTop: 6,
+    padding: 10,
+    maxHeight: 300,
+  },
+  searchResultsTitle: {
+    color: '#60A5FA',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#293241',
+    paddingVertical: 10,
+  },
+  searchResultInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  searchResultName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  searchResultMeta: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    marginTop: 3,
+  },
+  searchResultArrow: {
+    color: '#60A5FA',
+    fontSize: 25,
+    fontWeight: 'bold',
+  },
+  moreResultsText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  homeScroll: {
+    flex: 1,
+  },
+  homeScrollContent: {
+    paddingBottom: 30,
   },
   navButton: {
     backgroundColor: '#161920',
