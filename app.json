@@ -18,14 +18,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Aplicația are nevoie de acces la pozele tale pentru a atașa imagini la piese.",
-          "cameraPermission": "Aplicația are nevoie de acces la cameră pentru a fotografia piesele."
+          "photosPermission": "Aplicația are nevoie de acces la fotografii pentru a atașa imagini la piese.",
+          "cameraPermission": "Aplicația KOW Auto Parts are nevoie de acces la cameră pentru fotografierea pieselor și scanarea codurilor QR."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Aplicația are nevoie de acces la cameră pentru scanarea codurilor QR.",
+          "cameraPermission": "Aplicația KOW Auto Parts are nevoie de acces la cameră pentru fotografierea pieselor și scanarea codurilor QR.",
           "barcodeScannerEnabled": true
         }
       ]
