@@ -148,10 +148,12 @@ const INITIAL_FORM = {
   tireSize: '',
   lot: '',
   car: '',
+  lotId: null,
+  donorCarId: null,
   qrCode: '',
   price: '',
   quantity: '1',
-  currency: 'EUR',
+  currency: 'RON',
   condition: 'Stare bună',
   verification: 'Neverificat',
   defectDetails: '',
@@ -166,6 +168,8 @@ const INITIAL_FORM = {
 export default function AddPartScreen({
   goBack,
   onSavePartToStock,
+  lots = [],
+  donorCars = [],
 }) {
   const [category, setCategory] = useState('');
   const [caroserieOpen, setCaroserieOpen] = useState(false);
@@ -174,6 +178,9 @@ export default function AddPartScreen({
   const [photos, setPhotos] = useState([]);
   const [qrValidated, setQrValidated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [provenanceMode, setProvenanceMode] = useState('none');
+  const [selectedLotId, setSelectedLotId] = useState(null);
+  const [selectedCarId, setSelectedCarId] = useState(null);
   const savingRef = useRef(false);
 
   const update = (key, value) => {
@@ -185,6 +192,32 @@ export default function AddPartScreen({
     if (key === 'qrCode') {
       setQrValidated(false);
     }
+  };
+
+  const selectedCar = donorCars.find(
+    car => String(car.id) === String(selectedCarId)
+  );
+
+  const selectedLot = lots.find(
+    lot => String(lot.id) === String(selectedLotId)
+  );
+
+  const chooseLot = lot => {
+    setProvenanceMode('lot');
+    setSelectedLotId(lot.id);
+    setSelectedCarId(null);
+  };
+
+  const chooseCar = car => {
+    setProvenanceMode('car');
+    setSelectedCarId(car.id);
+    setSelectedLotId(car.lotId || null);
+  };
+
+  const clearProvenance = () => {
+    setProvenanceMode('none');
+    setSelectedLotId(null);
+    setSelectedCarId(null);
   };
 
   const continueFromBaraFata = () => {
@@ -216,7 +249,6 @@ export default function AddPartScreen({
     setCaroserieOpen(false);
   };
 
-  // SELECTARE FOTOGRAFII DIN GALERIE
   const pickPhotos = async () => {
     try {
       const permission =
@@ -248,7 +280,6 @@ export default function AddPartScreen({
     }
   };
 
-  // FOTOGRAFIERE CU CAMERA
   const takePhoto = async () => {
     try {
       const permission =
@@ -278,14 +309,12 @@ export default function AddPartScreen({
     }
   };
 
-  // ELIMINARE FOTOGRAFIE
   const removePhoto = index => {
     setPhotos(current =>
       current.filter((_, i) => i !== index)
     );
   };
 
-  // SELECTARE LOCAȚIE
   const chooseLocation = type => {
     setForm(current => ({
       ...current,
@@ -297,7 +326,6 @@ export default function AddPartScreen({
     }));
   };
 
-  // CONFIRMARE COD QR INTRODUS MANUAL
   const validateQr = () => {
     const code = form.qrCode.trim();
 
@@ -312,11 +340,8 @@ export default function AddPartScreen({
     setQrValidated(true);
   };
 
-  // SALVARE PIESĂ
   const savePart = async () => {
-    if (savingRef.current) {
-      return;
-    }
+    if (savingRef.current) return;
 
     if (!category) {
       Alert.alert('Atenție', 'Selectează categoria piesei.');
@@ -360,6 +385,30 @@ export default function AddPartScreen({
       return;
     }
 
+    const priceNumber = Number(
+      String(form.price || '0').replace(',', '.')
+    );
+
+    if (!Number.isFinite(priceNumber) || priceNumber < 0) {
+      Alert.alert(
+        'Preț invalid',
+        'Introdu un preț valid în RON.'
+      );
+      return;
+    }
+
+    const linkedCar = selectedCarId
+      ? donorCars.find(
+          car => String(car.id) === String(selectedCarId)
+        )
+      : null;
+
+    const finalLotId = linkedCar
+      ? linkedCar.lotId || null
+      : provenanceMode === 'lot'
+        ? selectedLotId
+        : null;
+
     const newPart = {
       ...form,
       id: form.qrCode.trim(),
@@ -368,13 +417,20 @@ export default function AddPartScreen({
       subcategory: selectedSubcategory?.id || '',
       subcategoryName: selectedSubcategory?.name || '',
       partName: form.partName.trim(),
+      lotId: finalLotId,
+      donorCarId: linkedCar ? linkedCar.id : null,
+      lotName: lots.find(
+        lot => String(lot.id) === String(finalLotId)
+      )?.name || '',
+      donorCarName: linkedCar
+        ? `${linkedCar.brand || ''} ${linkedCar.model || ''}`.trim()
+        : '',
       location,
-      price: form.price
-        ? `${form.price} ${form.currency}`
-        : `0 ${form.currency}`,
+      price: `${priceNumber} RON`,
+      currency: 'RON',
       photos,
       dateAdded: new Date().toLocaleDateString('ro-RO'),
-      quantity: quantity,
+      quantity,
     };
 
     if (typeof onSavePartToStock !== 'function') {
@@ -478,7 +534,8 @@ export default function AddPartScreen({
   const fields = CATEGORY_FIELDS[category] || [];
 
   const visibleFields =
-    category === 'caroserie' && selectedSubcategory?.id === 'bara_fata'
+    category === 'caroserie' &&
+    selectedSubcategory?.id === 'bara_fata'
       ? fields.filter(([, key]) => key === 'partName')
       : fields;
 
@@ -493,9 +550,7 @@ export default function AddPartScreen({
           <Text style={styles.backText}>‹ Înapoi</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>
-          Adaugă piesă
-        </Text>
+        <Text style={styles.headerTitle}>Adaugă piesă</Text>
 
         <View style={{ width: 64 }} />
       </View>
@@ -504,14 +559,12 @@ export default function AddPartScreen({
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* 1. FOTOGRAFII ȘI QR */}
         <Section title="1. Fotografii și cod QR">
           <View style={styles.buttonRow}>
             <ActionButton
               label="＋ Adaugă poze"
               onPress={pickPhotos}
             />
-
             <ActionButton
               label="📷 Fotografiază"
               onPress={takePhoto}
@@ -524,13 +577,8 @@ export default function AddPartScreen({
                 key={`${uri}-${index}`}
                 onPress={() => removePhoto(index)}
               >
-                <Image
-                  source={{ uri }}
-                  style={styles.photo}
-                />
-                <Text style={styles.removePhoto}>
-                  Elimină
-                </Text>
+                <Image source={{ uri }} style={styles.photo} />
+                <Text style={styles.removePhoto}>Elimină</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -539,16 +587,12 @@ export default function AddPartScreen({
             Atinge o fotografie pentru a o elimina.
           </Text>
 
-          <Text style={styles.label}>
-            Cod QR unic al piesei
-          </Text>
+          <Text style={styles.label}>Cod QR unic al piesei</Text>
 
           <TextInput
             style={styles.input}
             value={form.qrCode}
-            onChangeText={value =>
-              update('qrCode', value)
-            }
+            onChangeText={value => update('qrCode', value)}
             placeholder="Introdu codul de pe etichetă"
             placeholderTextColor="#7C8494"
             autoCapitalize="characters"
@@ -566,20 +610,139 @@ export default function AddPartScreen({
           ) : null}
 
           <Text style={styles.helper}>
-            Scanarea automată cu camera și citirea codului
-            dintr-o fotografie vor fi implementate ulterior.
+            Scanarea automată cu camera și citirea codului dintr-o fotografie
+            vor fi implementate ulterior.
           </Text>
         </Section>
 
-        {/* 2. PROVENIENȚĂ */}
         <Section title="2. Proveniență">
           <Text style={styles.helper}>
-            Selectarea lotului și a mașinii donatoare va fi disponibilă
-            după configurarea registrului de proveniență.
+            Alege de unde provine piesa. Poți selecta un lot sau o mașină
+            donatoare. Dacă alegi o mașină, lotul ei este preluat automat.
           </Text>
+
+          <View style={styles.choiceRow}>
+            <Choice
+              label="Fără asociere"
+              selected={provenanceMode === 'none'}
+              onPress={clearProvenance}
+            />
+            <Choice
+              label="Dintr-un lot"
+              selected={provenanceMode === 'lot'}
+              onPress={() => {
+                setProvenanceMode('lot');
+                setSelectedCarId(null);
+              }}
+            />
+            <Choice
+              label="Dintr-o mașină"
+              selected={provenanceMode === 'car'}
+              onPress={() => {
+                setProvenanceMode('car');
+                setSelectedLotId(null);
+              }}
+            />
+          </View>
+
+          {provenanceMode === 'lot' ? (
+            <>
+              {lots.length === 0 ? (
+                <Text style={styles.helper}>
+                  Nu ai loturi înregistrate. Adaugă mai întâi un lot în
+                  secțiunea Proveniență.
+                </Text>
+              ) : (
+                <View style={styles.selectorList}>
+                  {lots.map(lot => (
+                    <TouchableOpacity
+                      key={lot.id}
+                      style={[
+                        styles.selector,
+                        selectedLotId === lot.id &&
+                          styles.selectorSelected,
+                      ]}
+                      onPress={() => chooseLot(lot)}
+                    >
+                      <View style={styles.selectorInfo}>
+                        <Text style={styles.selectorTitle}>
+                          {lot.name}
+                        </Text>
+                        <Text style={styles.selectorMeta}>
+                          {lot.acquisitionDate || 'Dată nespecificată'}
+                        </Text>
+                      </View>
+                      {selectedLotId === lot.id ? (
+                        <Text style={styles.selectedMark}>✓</Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null}
+
+          {provenanceMode === 'car' ? (
+            <>
+              {donorCars.length === 0 ? (
+                <Text style={styles.helper}>
+                  Nu ai mașini donatoare înregistrate. Adaugă mai întâi
+                  o mașină în secțiunea Proveniență.
+                </Text>
+              ) : (
+                <View style={styles.selectorList}>
+                  {donorCars.map(car => {
+                    const parentLot = lots.find(
+                      lot => String(lot.id) === String(car.lotId)
+                    );
+
+                    return (
+                      <TouchableOpacity
+                        key={car.id}
+                        style={[
+                          styles.selector,
+                          selectedCarId === car.id &&
+                            styles.selectorSelected,
+                        ]}
+                        onPress={() => chooseCar(car)}
+                      >
+                        <View style={styles.selectorInfo}>
+                          <Text style={styles.selectorTitle}>
+                            {car.brand} {car.model}
+                          </Text>
+                          <Text style={styles.selectorMeta}>
+                            {car.year || 'An nespecificat'}
+                            {car.engineCode ? ` · ${car.engineCode}` : ''}
+                          </Text>
+                          <Text style={styles.selectorMeta}>
+                            Lot: {parentLot?.name || 'Fără lot asociat'}
+                          </Text>
+                        </View>
+                        {selectedCarId === car.id ? (
+                          <Text style={styles.selectedMark}>✓</Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          ) : null}
+
+          {provenanceMode === 'lot' && selectedLot ? (
+            <Text style={styles.provenanceSelected}>
+              Lot selectat: {selectedLot.name}
+            </Text>
+          ) : null}
+
+          {provenanceMode === 'car' && selectedCar ? (
+            <Text style={styles.provenanceSelected}>
+              Mașină selectată: {selectedCar.brand} {selectedCar.model}
+              {selectedLot ? ` · Lot: ${selectedLot.name}` : ''}
+            </Text>
+          ) : null}
         </Section>
 
-        {/* 3. CATEGORII */}
         <Section title="3. Categoria principală">
           <View style={styles.categoryGrid}>
             {CATEGORIES.map(item => (
@@ -587,8 +750,7 @@ export default function AddPartScreen({
                 key={item.id}
                 style={[
                   styles.categoryButton,
-                  category === item.id &&
-                    styles.categorySelected,
+                  category === item.id && styles.categorySelected,
                 ]}
                 onPress={() => {
                   setCategory(item.id);
@@ -601,19 +763,13 @@ export default function AddPartScreen({
                   }
                 }}
               >
-                <Text style={styles.categoryIcon}>
-                  {item.icon}
-                </Text>
-
-                <Text style={styles.categoryText}>
-                  {item.label}
-                </Text>
+                <Text style={styles.categoryIcon}>{item.icon}</Text>
+                <Text style={styles.categoryText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </Section>
 
-        {/* 4. DATELE SPECIFICE CATEGORIEI */}
         {category ? (
           <Section title="4. Datele piesei">
             {visibleFields.map(([label, key]) => (
@@ -621,14 +777,8 @@ export default function AddPartScreen({
                 key={key}
                 label={label}
                 value={form[key]}
-                onChangeText={value =>
-                  update(key, value)
-                }
-                keyboardType={
-                  key === 'year'
-                    ? 'numeric'
-                    : 'default'
-                }
+                onChangeText={value => update(key, value)}
+                keyboardType={key === 'year' ? 'numeric' : 'default'}
               />
             ))}
 
@@ -669,10 +819,7 @@ export default function AddPartScreen({
                             <Text style={styles.checkmark}>✓</Text>
                           ) : null}
                         </View>
-
-                        <Text style={styles.positionText}>
-                          {item}
-                        </Text>
+                        <Text style={styles.positionText}>{item}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -686,15 +833,9 @@ export default function AddPartScreen({
           </Section>
         ) : null}
 
-        {/* 5. LOCAȚIE */}
         <Section title="5. Locația piesei">
           <View style={styles.choiceRow}>
-            {[
-              'Depozit',
-              'Afară',
-              'Pe mașină',
-              'Curte',
-            ].map(item => (
+            {['Depozit', 'Afară', 'Pe mașină', 'Curte'].map(item => (
               <Choice
                 key={item}
                 label={item}
@@ -704,61 +845,44 @@ export default function AddPartScreen({
             ))}
           </View>
 
-          {['Depozit', 'Afară'].includes(
-            form.locationType
-          ) ? (
+          {['Depozit', 'Afară'].includes(form.locationType) ? (
             <View style={styles.threeFields}>
               <View style={styles.smallField}>
                 <Field
                   label="Raft"
                   value={form.shelf}
-                  onChangeText={value =>
-                    update('shelf', value)
-                  }
+                  onChangeText={value => update('shelf', value)}
                 />
               </View>
-
               <View style={styles.smallField}>
                 <Field
                   label="Coloană"
                   value={form.column}
-                  onChangeText={value =>
-                    update('column', value)
-                  }
+                  onChangeText={value => update('column', value)}
                 />
               </View>
-
               <View style={styles.smallField}>
                 <Field
                   label="Nivel"
                   value={form.level}
-                  onChangeText={value =>
-                    update('level', value)
-                  }
+                  onChangeText={value => update('level', value)}
                 />
               </View>
             </View>
           ) : null}
 
-          {['Pe mașină', 'Curte'].includes(
-            form.locationType
-          ) ? (
+          {['Pe mașină', 'Curte'].includes(form.locationType) ? (
             <Field
               label="Detalii locație"
               value={form.locationDetails}
-              onChangeText={value =>
-                update('locationDetails', value)
-              }
+              onChangeText={value => update('locationDetails', value)}
               placeholder="Descrie locația..."
             />
           ) : null}
         </Section>
 
-        {/* 6. STARE ȘI VERIFICARE */}
         <Section title="6. Stare și verificare">
-          <Text style={styles.label}>
-            Starea piesei
-          </Text>
+          <Text style={styles.label}>Starea piesei</Text>
 
           <View style={styles.choiceRow}>
             {['Stare bună', 'Mic defect'].map(item => (
@@ -775,17 +899,13 @@ export default function AddPartScreen({
             <Field
               label="Descriere defect"
               value={form.defectDetails}
-              onChangeText={value =>
-                update('defectDetails', value)
-              }
+              onChangeText={value => update('defectDetails', value)}
               multiline
               placeholder="Descrie defectul..."
             />
           ) : null}
 
-          <Text style={styles.label}>
-            Verificare
-          </Text>
+          <Text style={styles.label}>Verificare</Text>
 
           <View style={styles.choiceRow}>
             {['Verificat', 'Neverificat'].map(item => (
@@ -793,15 +913,12 @@ export default function AddPartScreen({
                 key={item}
                 label={item}
                 selected={form.verification === item}
-                onPress={() =>
-                  update('verification', item)
-                }
+                onPress={() => update('verification', item)}
               />
             ))}
           </View>
         </Section>
 
-        {/* 7. PREȚ */}
         <Section title="7. Preț">
           <Field
             label="Cantitate în stoc"
@@ -812,43 +929,28 @@ export default function AddPartScreen({
           />
 
           <Field
-            label="Preț de vânzare"
+            label="Preț de vânzare (RON)"
             value={form.price}
-            onChangeText={value =>
-              update('price', value)
-            }
+            onChangeText={value => update('price', value)}
             keyboardType="decimal-pad"
             placeholder="0,00"
           />
 
-          <View style={styles.choiceRow}>
-            {['EUR', 'RON'].map(item => (
-              <Choice
-                key={item}
-                label={item}
-                selected={form.currency === item}
-                onPress={() =>
-                  update('currency', item)
-                }
-              />
-            ))}
-          </View>
+          <Text style={styles.helper}>
+            Prețurile pieselor și vânzările sunt înregistrate în RON.
+          </Text>
         </Section>
 
-        {/* 8. OBSERVAȚII */}
         <Section title="8. Observații generale">
           <Field
             label="Observații suplimentare"
             value={form.observations}
-            onChangeText={value =>
-              update('observations', value)
-            }
+            onChangeText={value => update('observations', value)}
             multiline
             placeholder="Alte detalii despre piesă..."
           />
         </Section>
 
-        {/* SALVARE */}
         <TouchableOpacity
           style={[
             styles.saveButton,
@@ -868,19 +970,15 @@ export default function AddPartScreen({
   );
 }
 
-// COMPONENTĂ SECȚIUNE
 function Section({ title, children }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>
-        {title}
-      </Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
       {children}
     </View>
   );
 }
 
-// COMPONENTĂ CÂMP
 function Field({
   label,
   value,
@@ -891,10 +989,7 @@ function Field({
 }) {
   return (
     <View style={styles.fieldWrap}>
-      <Text style={styles.label}>
-        {label}
-      </Text>
-
+      <Text style={styles.label}>{label}</Text>
       <TextInput
         style={[
           styles.input,
@@ -911,21 +1006,17 @@ function Field({
   );
 }
 
-// BUTON ACȚIUNE
 function ActionButton({ label, onPress }) {
   return (
     <TouchableOpacity
       style={styles.actionButton}
       onPress={onPress}
     >
-      <Text style={styles.actionButtonText}>
-        {label}
-      </Text>
+      <Text style={styles.actionButtonText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-// OPȚIUNE SELECTABILĂ
 function Choice({ label, selected, onPress }) {
   return (
     <TouchableOpacity
@@ -947,13 +1038,11 @@ function Choice({ label, selected, onPress }) {
   );
 }
 
-// STILURI
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#10141D',
   },
-
   header: {
     minHeight: 60,
     paddingHorizontal: 14,
@@ -964,28 +1053,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#293241',
   },
-
   backButton: {
     width: 64,
   },
-
   backText: {
     color: '#AAB7CA',
     fontSize: 15,
     fontWeight: '600',
   },
-
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 19,
     fontWeight: '800',
   },
-
   content: {
     padding: 14,
     paddingBottom: 40,
   },
-
   section: {
     backgroundColor: '#19212E',
     borderRadius: 14,
@@ -994,19 +1078,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2B3748',
   },
-
   sectionTitle: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 14,
   },
-
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
   },
-
   actionButton: {
     flex: 1,
     backgroundColor: '#26364B',
@@ -1016,35 +1097,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-
   actionButtonText: {
     color: '#EAF2FF',
     fontWeight: '700',
     fontSize: 13,
     textAlign: 'center',
   },
-
   photoRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 9,
     marginTop: 8,
   },
-
   photo: {
     width: 76,
     height: 76,
     borderRadius: 8,
     backgroundColor: '#303B4B',
   },
-
   removePhoto: {
     color: '#FCA5A5',
     fontSize: 11,
     textAlign: 'center',
     marginTop: 3,
   },
-
   helper: {
     color: '#94A3B8',
     fontSize: 11,
@@ -1052,7 +1128,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 8,
   },
-
   label: {
     color: '#B9C5D6',
     fontSize: 12,
@@ -1060,7 +1135,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 5,
   },
-
   input: {
     backgroundColor: '#101722',
     borderWidth: 1,
@@ -1072,26 +1146,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 9,
   },
-
   multilineInput: {
     minHeight: 82,
     textAlignVertical: 'top',
   },
-
   validQr: {
     color: '#4ADE80',
     fontSize: 13,
     fontWeight: '800',
     marginTop: 4,
   },
-
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 8,
   },
-
   categoryButton: {
     width: '31.5%',
     minHeight: 92,
@@ -1103,31 +1173,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   categorySelected: {
     borderColor: '#36B37E',
     backgroundColor: '#18372F',
   },
-
   categoryIcon: {
     fontSize: 24,
     marginBottom: 6,
   },
-
   categoryText: {
     color: '#DCE5F2',
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
   },
-
   choiceRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 7,
     marginBottom: 7,
   },
-
   choice: {
     borderWidth: 1,
     borderColor: '#435168',
@@ -1136,32 +1201,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
   },
-
   choiceSelected: {
     backgroundColor: '#174B3A',
     borderColor: '#36B37E',
   },
-
   choiceText: {
     color: '#C4CFDE',
     fontSize: 12,
     fontWeight: '600',
   },
-
   choiceTextSelected: {
     color: '#8EF0BD',
   },
-
+  selectorList: {
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#101722',
+    borderWidth: 1,
+    borderColor: '#354255',
+    borderRadius: 9,
+    padding: 11,
+    marginBottom: 7,
+  },
+  selectorSelected: {
+    backgroundColor: '#174B3A',
+    borderColor: '#36B37E',
+  },
+  selectorInfo: {
+    flex: 1,
+  },
+  selectorTitle: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  selectorMeta: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 3,
+  },
+  selectedMark: {
+    color: '#4ADE80',
+    fontWeight: '900',
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  provenanceSelected: {
+    color: '#4ADE80',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 8,
+  },
   positionSection: {
     marginTop: 8,
   },
-
   positionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-
   positionOption: {
     width: '48%',
     flexDirection: 'row',
@@ -1174,7 +1277,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     marginBottom: 7,
   },
-
   positionText: {
     color: '#DCE5F2',
     fontSize: 12,
@@ -1182,7 +1284,6 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     marginLeft: 8,
   },
-
   checkbox: {
     width: 20,
     height: 20,
@@ -1193,31 +1294,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   checkboxSelected: {
     backgroundColor: '#16865D',
     borderColor: '#36B37E',
   },
-
   checkmark: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
   },
-
   threeFields: {
     flexDirection: 'row',
     gap: 7,
   },
-
   smallField: {
     flex: 1,
   },
-
   fieldWrap: {
     flex: 1,
   },
-
   saveButton: {
     backgroundColor: '#16865D',
     paddingVertical: 16,
@@ -1226,12 +1321,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 20,
   },
-
   saveButtonDisabled: {
     backgroundColor: '#52665F',
     opacity: 0.8,
   },
-
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
