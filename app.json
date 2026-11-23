@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "KOW Auto Parts",
@@ -20,14 +21,14 @@
           "photosPermission": "Aplicația are nevoie de acces la pozele tale pentru a atașa imagini la piese.",
           "cameraPermission": "Aplicația are nevoie de acces la cameră pentru a fotografia piesele."
         }
-      ]
+      ],
       [
-  "expo-camera",
-  {
-    "cameraPermission": "Aplicația are nevoie de acces la cameră pentru scanarea codurilor QR.",
-    "barcodeScannerEnabled": true
-  }
-]
+        "expo-camera",
+        {
+          "cameraPermission": "Aplicația are nevoie de acces la cameră pentru scanarea codurilor QR.",
+          "barcodeScannerEnabled": true
+        }
+      ]
     ],
     "extra": {
       "eas": {
