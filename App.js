@@ -46,6 +46,150 @@ const normalizeText = value => {
     .trim();
 };
 
+// Transformă numele câmpurilor în etichete lizibile.
+const getCodeLabel = path => {
+  const labels = {
+    oemCode: 'Cod OEM',
+    oemCodes: 'Coduri OEM',
+    producerCode: 'Cod producător',
+    manufacturerCode: 'Cod producător',
+    manufacturerCodes: 'Coduri producător',
+    sensorCodes: 'Coduri senzori',
+    sensorCode: 'Cod senzor',
+    grilleCodes: 'Coduri grile',
+    codes: 'Coduri componente',
+    code: 'Cod componentă',
+    colorCode: 'Cod culoare',
+    left: 'Stânga',
+    right: 'Dreapta',
+    washers: 'Spălătoare faruri',
+    fogLights: 'Proiectoare',
+    grilles: 'Grile',
+    sensors: 'Senzori',
+    extraFeatures: 'Dotări suplimentare',
+  };
+
+  const parts = path
+    .replace(/\[(\d+)\]/g, ' $1')
+    .split('.')
+    .filter(Boolean);
+
+  return parts
+    .map(part => labels[part] || part)
+    .join(' → ');
+};
+
+// Verifică dacă un câmp reprezintă un cod.
+const isCodeField = key => {
+  const normalized = normalizeText(key).replace(/[^a-z0-9]/g, '');
+
+  return (
+    normalized === 'code' ||
+    normalized.includes('oem') ||
+    normalized.includes('producercode') ||
+    normalized.includes('manufacturercode') ||
+    normalized.includes('sensorcode') ||
+    normalized.includes('grillecode') ||
+    normalized.includes('partcode') ||
+    normalized.includes('componentcode') ||
+    normalized.includes('cod')
+  );
+};
+
+// Caută recursiv codurile din toate obiectele și subcategoriile.
+const getNestedCodeMatches = part => {
+  const matches = [];
+  const visited = new Set();
+
+  const walk = (value, path = '', parentIsCode = false) => {
+    if (value === null || value === undefined) return;
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      if (parentIsCode && String(value).trim()) {
+        matches.push({
+          value: String(value).trim(),
+          label: getCodeLabel(path),
+          path,
+        });
+      }
+      return;
+    }
+
+    if (typeof value !== 'object') return;
+    if (visited.has(value)) return;
+
+    visited.add(value);
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        walk(item, `${path}[${index}]`, parentIsCode);
+      });
+      return;
+    }
+
+    Object.entries(value).forEach(([key, child]) => {
+      const childPath = path ? `${path}.${key}` : key;
+      const codeField = isCodeField(key);
+
+      // Câmpurile cu nume explicite de cod sunt preluate.
+      // În interiorul unui câmp de cod, sunt acceptate și valorile
+      // din obiecte sau liste.
+      walk(child, childPath, codeField || parentIsCode);
+    });
+  };
+
+  walk(part);
+
+  // Elimină doar duplicatele identice din aceeași înregistrare.
+  const unique = [];
+  const seen = new Set();
+
+  matches.forEach(match => {
+    const key = `${normalizeText(match.value)}|${match.path}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(match);
+    }
+  });
+
+  return unique;
+};
+
+const getPartCodeMatches = part => {
+  const matches = getNestedCodeMatches(part);
+
+  // Câmpurile principale sunt tratate separat pentru compatibilitate
+  // cu înregistrările mai vechi din aplicație.
+  const mainFields = [
+    ['oemCode', part.oemCode],
+    ['producerCode', part.producerCode],
+    ['qrCode', part.qrCode],
+  ];
+
+  mainFields.forEach(([key, value]) => {
+    if (!value) return;
+
+    const normalized = normalizeText(value);
+
+    if (
+      !matches.some(
+        item =>
+          normalizeText(item.value) === normalized &&
+          item.path === key
+      )
+    ) {
+      matches.push({
+        value: String(value).trim(),
+        label: getCodeLabel(key),
+        path: key,
+      });
+    }
+  });
+
+  return matches;
+};
+
 const getPartSearchText = part => {
   const bumper = part.baraFata || {};
 
@@ -78,10 +222,23 @@ const getPartSearchText = part => {
     bumper.carModel,
     bumper.year,
     bumper.colorCode,
-    ...(bumper.oemCodes || []),
   ];
 
-  return normalizeText(values.filter(Boolean).join(' '));
+  const nestedCodes = getPartCodeMatches(part).map(item => item.value);
+
+  return normalizeText(
+    [...values, ...nestedCodes].filter(Boolean).join(' ')
+  );
+};
+
+const getPartSearchMatches = (part, query) => {
+  const normalizedQuery = normalizeText(query);
+
+  if (!normalizedQuery) return [];
+
+  return getPartCodeMatches(part).filter(match =>
+    normalizeText(match.value).includes(normalizedQuery)
+  );
 };
 
 export default function App() {
@@ -402,13 +559,13 @@ export default function App() {
 
   const normalizedSearch = normalizeText(searchQuery);
 
-  const searchResults = normalizedSearch
-    ? stockParts
-        .filter(part =>
-          getPartSearchText(part).includes(normalizedSearch)
-        )
-        .slice(0, 8)
+  const allSearchResults = normalizedSearch
+    ? stockParts.filter(part =>
+        getPartSearchText(part).includes(normalizedSearch)
+      )
     : [];
+
+  const searchResults = allSearchResults.slice(0, 8);
 
   const openSearchResult = part => {
     setSelectedPart(part);
@@ -565,47 +722,68 @@ export default function App() {
           <View style={styles.searchResults}>
             <Text style={styles.searchResultsTitle}>
               {searchResults.length > 0
-                ? `Rezultate (${searchResults.length}${stockParts.filter(part =>
-                    getPartSearchText(part).includes(normalizedSearch)
-                  ).length > 8 ? '+' : ''})`
+                ? `Rezultate (${allSearchResults.length}${allSearchResults.length > 8 ? '+' : ''})`
                 : 'Nu am găsit nicio piesă'}
             </Text>
 
-            {searchResults.map(part => (
-              <TouchableOpacity
-                key={String(part.id)}
-                style={styles.searchResultItem}
-                onPress={() => openSearchResult(part)}
-              >
-                <View style={styles.searchResultInfo}>
-                  <Text style={styles.searchResultName}>
-                    {part.partName || 'Piesă fără denumire'}
-                  </Text>
+            {searchResults.map(part => {
+              const matchedCodes = getPartSearchMatches(
+                part,
+                searchQuery
+              );
 
-                  <Text style={styles.searchResultMeta}>
-                    {[
-                      part.carMake,
-                      part.carModel,
-                      part.engineCode,
-                    ].filter(Boolean).join(' ')}
-                  </Text>
+              return (
+                <TouchableOpacity
+                  key={String(part.id)}
+                  style={styles.searchResultItem}
+                  onPress={() => openSearchResult(part)}
+                >
+                  <View style={styles.searchResultInfo}>
+                    <Text style={styles.searchResultName}>
+                      {part.partName || 'Piesă fără denumire'}
+                    </Text>
 
-                  <Text style={styles.searchResultMeta}>
-                    {part.oemCode
-                      ? `OEM: ${part.oemCode}`
-                      : part.producerCode
-                        ? `Producător: ${part.producerCode}`
-                        : `QR: ${part.qrCode || part.id}`}
-                  </Text>
-                </View>
+                    <Text style={styles.searchResultMeta}>
+                      {[
+                        part.carMake,
+                        part.carModel,
+                        part.engineCode,
+                      ].filter(Boolean).join(' ')}
+                    </Text>
 
-                <Text style={styles.searchResultArrow}>›</Text>
-              </TouchableOpacity>
-            ))}
+                    {matchedCodes.length > 0 ? (
+                      <View style={styles.matchContainer}>
+                        {matchedCodes.slice(0, 3).map((match, index) => (
+                          <Text
+                            key={`${match.path}-${index}`}
+                            style={styles.matchText}
+                          >
+                            {match.label}: {match.value}
+                          </Text>
+                        ))}
+                        {matchedCodes.length > 3 ? (
+                          <Text style={styles.matchText}>
+                            + încă {matchedCodes.length - 3} potriviri
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : (
+                      <Text style={styles.searchResultMeta}>
+                        {part.oemCode
+                          ? `OEM: ${part.oemCode}`
+                          : part.producerCode
+                            ? `Producător: ${part.producerCode}`
+                            : `QR: ${part.qrCode || part.id}`}
+                      </Text>
+                    )}
+                  </View>
 
-            {stockParts.filter(part =>
-              getPartSearchText(part).includes(normalizedSearch)
-            ).length > 8 ? (
+                  <Text style={styles.searchResultArrow}>›</Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {allSearchResults.length > 8 ? (
               <Text style={styles.moreResultsText}>
                 Sunt mai multe rezultate. Deschide Stoc piese pentru lista completă.
               </Text>
@@ -809,6 +987,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 3,
   },
+  matchContainer: {
+    marginTop: 4,
+  },
+  matchText: {
+    color: '#60A5FA',
+    fontSize: 11,
+    marginTop: 3,
+  },
   searchResultArrow: {
     color: '#60A5FA',
     fontSize: 25,
@@ -909,4 +1095,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
- 
